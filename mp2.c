@@ -12,6 +12,48 @@ int proc_registration_write(struct file *file, const char *buffer, unsigned long
   return 1;
 }
 
+// Un-register this PID from the task list.
+// Return 0 if the task is removed from the list, -1 if it was not found
+int unregister_task(long pid)
+{
+  struct list_head *pos, *tmp;
+  struct mp2_task_struct *p;
+  int found = -1;  // init to not found
+
+  // loop through the list until we find our PID, then remove it
+  list_for_each_safe(pos, tmp, &mp2_task_list)
+  {
+    p = list_entry(pos, struct mp2_task_struct, task_node);
+    // is this is our task?
+    if(p->pid == pid){
+      // yes, we need to remove this entry
+      mutex_lock(&mp2_mutex);
+      list_del(pos);
+      kfree(p);
+      mutex_unlock(&mp2_mutex);
+      printk(KERN_INFO "Removing PID %ld", pid);
+      found=0;
+      break;
+    } // no, keep searching
+  }
+  // return the result status
+  return found;
+}
+
+// Frees the memory from the list
+void _destroy_task_list(void)
+{
+  struct list_head *pos, *tmp;
+  struct mp2_task_struct *p;
+
+  list_for_each_safe(pos, tmp, &mp2_task_list)
+    {
+      p = list_entry(pos, struct mp2_task_struct, task_node);
+      list_del(pos);
+      kfree(p);
+    }
+}
+
 //THIS FUNCTION GETS EXECUTED WHEN THE MODULE GETS LOADED
 //NOTE THE __INIT ANNOTATION AND THE FUNCTION PROTOTYPE
 int __init my_module_init(void)
@@ -32,7 +74,7 @@ void __exit my_module_exit(void)
 {
    remove_proc_entry("status", mp2_proc_dir);
    remove_proc_entry("mp2", NULL);
-
+   _destroy_task_list();
    printk(KERN_INFO "MP2 Module UNLOADED\n");
 }
 

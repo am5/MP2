@@ -36,6 +36,6 @@ static struct proc_dir_entry *register_task_file;
 //struct task_struct* update_kthread;
 //int stop_thread=0;
 
-//LIST_HEAD(mp1_task_list);
-//static DEFINE_MUTEX(mp1_mutex);
+LIST_HEAD(mp2_task_list);
+static DEFINE_MUTEX(mp2_mutex);
 #endif
