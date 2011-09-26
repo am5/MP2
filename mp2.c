@@ -1,22 +1,45 @@
 #include "mp2.h"
 
+//Inserts task in list 
+//called by REGISTER
 void _insert_task(struct mp2_task_struct* t)
 {
   BUG_ON(t==NULL);
   list_add_tail(&t->task_node, &mp2_task_list);
 }
 
-// Register this PID to the task list.
+//validates the PID
+//returns node if PID exist in list
+struct mp2_task_struct* _lookup_task(long pid)
+{
+  struct list_head *pos;
+  struct mp2_task_struct *p;
+  
+  list_for_each(pos, &mp2_task_list)
+  {
+    p = list_entry(pos, struct mp2_task_struct, task_node);
+    if(p->pid == pid)
+      return p;
+  }
+  
+  return NULL;
+}
+
+// register this PID from the task list.
+// Return 0 if the task is registered, -1 if it was not
 int register_task(long pid)
 {
-  struct mp2_task_struct* newtask;
-
- // if (_lookup_task(pid)!=NULL) return -1;
-
-  newtask=kmalloc(sizeof(struct mp2_task_struct),GFP_KERNEL);
-  newtask->pid=pid;
+  struct mp2_task_struct *p;
+  
+  //only add if PID doesn't already exist
+  if(_lookup_task(pid) != NULL) return -1;
+  
+  //*****CALL THE ADMISSION VALIDATION FUNCTION HERE **********
+  p = kmalloc(sizeof(struct mp2_task_struct), GFP_KERNEL);
+  p->pid = pid;
   // get the task by given PID
-  newtask->linux_task = find_task_by_pid(pid);
+  p->linux_task = find_task_by_pid(pid);
+  
   if(newtask->linux_task == NULL){
     // no task was found associated with given PID
     printk(KERN_INFO "No task associated with PID %ld\n", pid);
@@ -26,7 +49,7 @@ int register_task(long pid)
     return -1;
   }
   mutex_lock(&mp2_mutex);
-  _insert_task(newtask);
+  _insert_task(p);
   mutex_unlock(&mp2_mutex);
   printk(KERN_INFO "Task added to list\n");
 
