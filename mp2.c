@@ -1,15 +1,36 @@
 #include "mp2.h"
 
-int proc_registration_read(char *page, char **start, off_t off, int count, int* eof, void* data)
+void _insert_task(struct mp2_task_struct* t)
 {
-  printk(KERN_INFO "Reading from proc file\n");
-  return 1;
+  BUG_ON(t==NULL);
+  list_add_tail(&t->task_node, &mp2_task_list);
 }
 
-int proc_registration_write(struct file *file, const char *buffer, unsigned long count, void *data)
+// Register this PID to the task list.
+int register_task(long pid)
 {
-  printk(KERN_INFO "Writing to proc file\n");
-  return 1;
+  struct mp2_task_struct* newtask;
+
+ // if (_lookup_task(pid)!=NULL) return -1;
+
+  newtask=kmalloc(sizeof(struct mp2_task_struct),GFP_KERNEL);
+  newtask->pid=pid;
+  // get the task by given PID
+  newtask->linux_task = find_task_by_pid(pid);
+  if(newtask->linux_task == NULL){
+    // no task was found associated with given PID
+    printk(KERN_INFO "No task associated with PID %ld\n", pid);
+    // free the memory
+    kfree(newtask);
+    // return error
+    return -1;
+  }
+  mutex_lock(&mp2_mutex);
+  _insert_task(newtask);
+  mutex_unlock(&mp2_mutex);
+  printk(KERN_INFO "Task added to list\n");
+
+  return 0;
 }
 
 // Un-register this PID from the task list.
@@ -26,18 +47,56 @@ int unregister_task(long pid)
     p = list_entry(pos, struct mp2_task_struct, task_node);
     // is this is our task?
     if(p->pid == pid){
+      printk(KERN_INFO "Found node with PID %ld\n", p->pid);
       // yes, we need to remove this entry
       mutex_lock(&mp2_mutex);
       list_del(pos);
       kfree(p);
       mutex_unlock(&mp2_mutex);
-      printk(KERN_INFO "Removing PID %ld", pid);
+      printk(KERN_INFO "Removing PID %ld\n", pid);
       found=0;
-      break;
     } // no, keep searching
   }
   // return the result status
   return found;
+}
+
+int proc_registration_read(char *page, char **start, off_t off, int count, int* eof, void* data)
+{
+  printk(KERN_INFO "Reading from proc file\n");
+  return 1;
+}
+
+int proc_registration_write(struct file *file, const char *buffer, unsigned long count, void *data)
+{
+  printk(KERN_INFO "Writing to proc file\n");
+
+  char *proc_buffer;
+  char *action;
+  long pid, comp;
+  int status;
+
+  proc_buffer=kmalloc(count, GFP_KERNEL);
+  action=kmalloc(2, GFP_KERNEL);
+  status=copy_from_user(proc_buffer, buffer, count);
+  sscanf(proc_buffer, "%s %ld %ld", action, &pid, &comp);
+  printk(KERN_INFO "From /proc/mp2/status: %s, %ld, %ld\n", action, pid, comp); 
+
+  if(strcmp(action, "R")==0){
+    printk(KERN_INFO "Going to register PID %ld\n", pid);
+    // perform registration
+    register_task(pid);
+  }
+  if(strcmp(action, "D")==0){
+    printk(KERN_INFO "Going to un-register PID %ld\n", pid);
+    // perform de-registration
+    unregister_task(pid);
+  }
+  // free the memory
+  kfree(proc_buffer);
+  kfree(action);
+
+  return count;
 }
 
 // Frees the memory from the list
@@ -50,6 +109,7 @@ void _destroy_task_list(void)
     {
       p = list_entry(pos, struct mp2_task_struct, task_node);
       list_del(pos);
+      printk(KERN_INFO "Destroying task associated with PID %ld\n", p->pid);
       kfree(p);
     }
 }

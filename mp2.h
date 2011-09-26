@@ -20,7 +20,7 @@
 // Process Control Block
 struct mp2_task_struct
 {
-  int pid;
+  long pid;
   struct task_struct* linux_task;	// the real PCB
   struct timer_list wakeup_timer;
   struct list_head task_node;
