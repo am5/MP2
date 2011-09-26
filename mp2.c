@@ -26,7 +26,7 @@ struct mp2_task_struct* _lookup_task(long pid)
 }
 
 //admission control
-
+//returns true if OK to admit
 bool shouldAdmit(long period, long processingTime)
 {
   long admissionThreshold = 0.693;
@@ -51,10 +51,9 @@ bool shouldAdmit(long period, long processingTime)
 
 // register this PID from the task list.
 // Return 0 if the task is registered, -1 if it was not
-int register_task(long pid, long period, long comp)
+int register_task(long pid, long period, long processingTime)
 {
   struct mp2_task_struct *p;
-  long processingTime = 0;
   
   //only add if PID doesn't already exist
   if(_lookup_task(pid) != NULL) return -1;
@@ -67,12 +66,6 @@ int register_task(long pid, long period, long comp)
 
   // get the task by given PID
   p->linux_task = find_task_by_pid(pid);
-
-  //update task struct
-  p->pid = pid;
-  p->period = period;
-
-  
   if(p->linux_task == NULL){
     // no task was found associated with given PID
     printk(KERN_INFO "No task associated with PID %ld\n", pid);
@@ -81,6 +74,14 @@ int register_task(long pid, long period, long comp)
     // return error
     return -1;
   }
+
+  //update task struct
+  p->pid = pid;
+  p->period = period;
+  p->ptime = processingTime;
+  set_task_state(p->linux_task, TASK_UNINTERRUPTIBLE);
+
+  //insert task
   mutex_lock(&mp2_mutex);
   _insert_task(p);
   mutex_unlock(&mp2_mutex);
@@ -129,20 +130,20 @@ int proc_registration_write(struct file *file, const char *buffer, unsigned long
 
   char *proc_buffer;
   char *action;
-  long pid, comp;
+  long pid, processingTime;
   int status;
   long period=0;
 
   proc_buffer=kmalloc(count, GFP_KERNEL);
   action=kmalloc(2, GFP_KERNEL);
   status=copy_from_user(proc_buffer, buffer, count);
-  sscanf(proc_buffer, "%s %ld %ld", action, &pid, &comp);
-  printk(KERN_INFO "From /proc/mp2/status: %s, %ld, %ld\n", action, pid, comp); 
+  sscanf(proc_buffer, "%s %ld %ld", action, &pid, &processingTime);
+  printk(KERN_INFO "From /proc/mp2/status: %s, %ld, %ld\n", action, pid, processingTime); 
 
   if(strcmp(action, "R")==0){
     printk(KERN_INFO "Going to register PID %ld\n", pid);
     // perform registration
-    register_task(pid, period, comp);
+    register_task(pid, period, processingTime);
   }
   if(strcmp(action, "D")==0){
     printk(KERN_INFO "Going to un-register PID %ld\n", pid);
