@@ -161,12 +161,12 @@ int proc_registration_write(struct file *file, const char *buffer, unsigned long
   char *action;
   long pid, processingTime;
   int status;
-  long period=0;
+  long period;
 
   proc_buffer=kmalloc(count, GFP_KERNEL);
   action=kmalloc(2, GFP_KERNEL);
   status=copy_from_user(proc_buffer, buffer, count);
-  sscanf(proc_buffer, "%s %ld %ld", action, &pid, &processingTime);
+  sscanf(proc_buffer, "%s %ld %ld %ld", action, &pid, &period, &processingTime);
   printk(KERN_INFO "From /proc/mp2/status: %s, %ld, %ld\n", action, pid, processingTime); 
 
   if(strcmp(action, "R")==0){
