@@ -149,6 +149,7 @@ int unregister_task(long pid)
 int proc_registration_read(char *page, char **start, off_t off, int count, int* eof, void* data)
 {
   printk(KERN_INFO "Reading from proc file\n");
+  // should return the number of bytes printed
   return 1;
 }
 
