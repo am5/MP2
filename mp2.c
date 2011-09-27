@@ -25,7 +25,7 @@ inline void set_timer(struct timer_list* tlist, long release_time)
 void up_handler(unsigned long ptr)
 {
   //SCHEDULE THE THREAD TO RUN (WAKE UP THE THREAD)
-  wake_up_process(update_kthread);
+  wake_up_process(dispatch_kthread);
 }
 
 //Inserts task in list 
@@ -57,6 +57,7 @@ struct mp2_task_struct* _lookup_task(long pid)
 //returns true if OK to admit
 bool shouldAdmit(long period, long processingTime)
 {
+  //*****NEEDS UPDATE TO NOT USE FLOATS****** (Intisar)
   long admissionThreshold = 0.693;
   struct list_head *pos;
   struct mp2_task_struct *p;
@@ -108,6 +109,7 @@ int register_task(long pid, long period, long processingTime)
   p->period = period;
   p->ptime = processingTime;
   set_task_state(p->linux_task, TASK_INTERRUPTIBLE);
+  init_timer(&(p->wakeup_timer));
 
   //insert task
   mutex_lock(&mp2_mutex);
@@ -219,6 +221,21 @@ void _destroy_task_list(void)
       kfree(p);
     }
 }
+//this function will run in the dispatch thread
+//and perform any scheduling updates as needed
+int perform_scheduling(void *data)
+{
+  while(1)
+  {
+    mutex_lock(&mp2_mutex);
+    if(stop_dispatch_thread==1) break;
+   
+    /******DO SCHEDULING JOB ********/
+  
+  }
+  mutex_unlock(&mp2_mutex);
+  return 0;
+}
 
 //THIS FUNCTION GETS EXECUTED WHEN THE MODULE GETS LOADED
 //NOTE THE __INIT ANNOTATION AND THE FUNCTION PROTOTYPE
@@ -229,6 +246,8 @@ int __init my_module_init(void)
   register_task_file=create_proc_entry("status", 0666, mp2_proc_dir);
   register_task_file->read_proc= proc_registration_read;
   register_task_file->write_proc=proc_registration_write;
+
+  dispatch_kthread = kthread_create(perform_scheduling, NULL, "kmp2");  
 
   //THE EQUIVALENT TO PRINTF IN KERNEL SPACE
   printk(KERN_INFO "MP2 Module LOADED\n");
@@ -241,10 +260,12 @@ void __exit my_module_exit(void)
 {
   remove_proc_entry("status", mp2_proc_dir);
   remove_proc_entry("mp2", NULL);
-  _destroy_task_list();
-  
   del_timer_sync(&up_timer);
-
+  
+  stop_dispatch_thread=1;
+  wake_up_process(dispatch_kthread);
+  
+  _destroy_task_list();
   printk(KERN_INFO "MP2 Module UNLOADED\n");
 }
 
