@@ -1,5 +1,33 @@
 #include "mp2.h"
 
+//HELPER FUNCTION TO INITIALIZE A TIMER WITH A SINGLE CALL
+inline void timer_init(struct timer_list  *timer, void (*function)(unsigned long))
+{
+  BUG_ON(timer==NULL || function==NULL);
+  init_timer(timer);
+  timer->function=function;
+  timer->data=(unsigned long) timer;
+}
+
+//THIS IS A HELPER FUNCTION TO SET A TIMER WITH ONE SINGLE CALL
+//KERNEL TIMERS ARE ABOLUTE AND EXPRESSED IN JIFFIES SINCE BOOT.
+//THIS HELPER FUNCTION SPECIFY THE RELATIVE TIME IN MILLISECONDS
+inline void set_timer(struct timer_list* tlist, long release_time)
+{
+  BUG_ON(tlist==NULL);
+  tlist->expires=jiffies+MS_TO_JIFF(release_time);
+  mod_timer(tlist, tlist->expires);
+}
+
+//THIS IS THE TIMER HANDLER (INTERRUPT CONTEXT)
+//THIS MUST BE VERY FAST SO WE USE A TWO HALVES APPROACH
+//WE DONT UPDATE HERE BUT SIGNAL THE THREAD THAT AN UPDATE MUST OCCUR
+void up_handler(unsigned long ptr)
+{
+  //SCHEDULE THE THREAD TO RUN (WAKE UP THE THREAD)
+  wake_up_process(update_kthread);
+}
+
 //Inserts task in list 
 //called by REGISTER
 void _insert_task(struct mp2_task_struct* t)
@@ -40,11 +68,11 @@ int register_task(long pid)
   // get the task by given PID
   p->linux_task = find_task_by_pid(pid);
   
-  if(newtask->linux_task == NULL){
+  if(p->linux_task == NULL){
     // no task was found associated with given PID
     printk(KERN_INFO "No task associated with PID %ld\n", pid);
     // free the memory
-    kfree(newtask);
+    kfree(p);
     // return error
     return -1;
   }
@@ -141,24 +169,28 @@ void _destroy_task_list(void)
 //NOTE THE __INIT ANNOTATION AND THE FUNCTION PROTOTYPE
 int __init my_module_init(void)
 {
-   mp2_proc_dir=proc_mkdir("mp2",NULL);
-   register_task_file=create_proc_entry("status", 0666, mp2_proc_dir);
-   register_task_file->read_proc= proc_registration_read;
-   register_task_file->write_proc=proc_registration_write;
+  timer_init(&up_timer, up_handler);
+  mp2_proc_dir=proc_mkdir("mp2",NULL);
+  register_task_file=create_proc_entry("status", 0666, mp2_proc_dir);
+  register_task_file->read_proc= proc_registration_read;
+  register_task_file->write_proc=proc_registration_write;
 
-   //THE EQUIVALENT TO PRINTF IN KERNEL SPACE
-   printk(KERN_INFO "MP2 Module LOADED\n");
-   return 0;   
+  //THE EQUIVALENT TO PRINTF IN KERNEL SPACE
+  printk(KERN_INFO "MP2 Module LOADED\n");
+  return 0;   
 }
 
 //THIS FUNCTION GETS EXECUTED WHEN THE MODULE GETS UNLOADED
 //NOTE THE __EXIT ANNOTATION AND THE FUNCTION PROTOTYPE
 void __exit my_module_exit(void)
 {
-   remove_proc_entry("status", mp2_proc_dir);
-   remove_proc_entry("mp2", NULL);
-   _destroy_task_list();
-   printk(KERN_INFO "MP2 Module UNLOADED\n");
+  remove_proc_entry("status", mp2_proc_dir);
+  remove_proc_entry("mp2", NULL);
+  _destroy_task_list();
+  
+  del_timer_sync(&up_timer);
+
+  printk(KERN_INFO "MP2 Module UNLOADED\n");
 }
 
 //WE REGISTER OUR INIT AND EXIT FUNCTIONS HERE SO INSMOD CAN RUN THEM

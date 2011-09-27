@@ -32,8 +32,8 @@ struct mp2_task_struct
 static struct proc_dir_entry *mp2_proc_dir;
 static struct proc_dir_entry *register_task_file;
 
-//struct timer_list up_timer;
-//struct task_struct* update_kthread;
+struct timer_list up_timer;
+struct task_struct* update_kthread;
 //int stop_thread=0;
 
 LIST_HEAD(mp2_task_list);
