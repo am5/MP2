@@ -1,9 +1,41 @@
+///////////////////////////////////////////////////////////////////////////////
+//
+// MP2:		User Application
+// Name:        userapp.c
+// Date: 	10/1/2011
+// Group:	20: Intisar Malhi, Alexandra Mirtcheva, and Roberto Moreno
+// Description: This source tests the Rate-Monotonic CPU scheduler defined by
+//	        mp2.c by computing the factorial of a number. 
+//
+///////////////////////////////////////////////////////////////////////////////
 #include <stdio.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdbool.h>
 
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:  factorial
+//
+// PROCESSING:
+//
+//    This function calculates the factorial of a number 
+//
+// INPUTS:
+//
+//    number - the number passed to the function that the factorial is 
+//	       calculated for. 
+//
+// RETURN:
+//
+//   long long - the factorial of the given number. 
+//
+// IMPLEMENTATION NOTES
+//
+//   None.
+//
+///////////////////////////////////////////////////////////////////////////////
 long long factorial(int number)
 {
   long long retval=1;
@@ -16,8 +48,31 @@ long long factorial(int number)
 
   return retval;
 }
-// Read the proc file /proc/mp2/status.
-// Return: true, if the PID is registered (appears in the file); false if otherwise
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:  is_registered
+//
+// PROCESSING:
+//
+//    This function verifies that the given process ID is registered 
+//
+// INPUTS:
+//
+//    pid - the PID of the processes
+//
+// RETURN:
+//
+//    bool - FALSE, if the PID is not registered (doesn't appear in the proc entry)
+//    	     TRUE, if the PID is registered (appears in the proc entry)
+//
+// IMPLEMENTATION NOTES
+//
+//   The is_registered user-space function uses a file handle to the 
+//   /proc/mp2/status file in order to read from the file. It uses fscanf
+//   to look for the given PID and returns the result. 
+//
+///////////////////////////////////////////////////////////////////////////////
 bool is_registered(pid_t pid){
   
   FILE *mp2_proc;	// for /proc/mp2/status file handler
@@ -47,8 +102,33 @@ bool is_registered(pid_t pid){
   // return true if PID is found (registred); false if otherwise
   return result;
 }
-// Attempts to register with the mp2 kernel module.
-// Return: true, if we were admitted, false if otherwise
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:  try_register
+//
+// PROCESSING:
+//
+//    This function attempts to register the task with the mp2 kernel module 
+//
+// INPUTS:
+//
+//    pid 		- the PID of the process
+//    period 		- the period of the process
+//    processTime 	- the process time of the process 
+//
+// RETURN:
+//
+//    bool - FALSE, if the PID is not registered (doesn't appear in the proc entry)
+//    	     TRUE, if the PID is registered (appears in the proc entry)
+//
+// IMPLEMENTATION NOTES
+//
+//   The try_register function uses a system call that uses a formatted string 
+//   as input. After the call to the kernel, the function verifies that the 
+//   PID appears in the proc file by calling is_registered. 
+//
+///////////////////////////////////////////////////////////////////////////////
 bool try_register(pid_t pid, long period, long processTime){
   char cmd[120];
   sprintf(cmd, "echo 'R %u %u %u'>//proc/mp2/status", pid, period, processTime);
@@ -59,6 +139,31 @@ bool try_register(pid_t pid, long period, long processTime){
 }
 
 // Sets yield status in proc file for this PID.
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:  try_yielding
+//
+// PROCESSING:
+//
+//    This function attempts to set the yield status in the proc entry for 
+//    a given PID. 
+//
+// INPUTS:
+//
+//    pid - the PID of the process
+//
+// RETURN:
+//
+//    bool - FALSE, the /proc/mp2/status could not be opened for writing 
+//    	     TRUE, as default
+//
+// IMPLEMENTATION NOTES
+//
+//   The try_yielding function uses a file handle to the /proc/mp2/status 
+//   and then writes a formatted yield message to the file. It closes the 
+//   file after it has finished writing to it. 
+//
+///////////////////////////////////////////////////////////////////////////////
 bool try_yielding(pid_t pid){
   FILE *mp2_proc;	// for /proc/mp2/status file handler
 
@@ -80,8 +185,31 @@ bool try_yielding(pid_t pid){
   return true;
 }
 
-// Performs the unregistration from kernel module task list.
-// Return true if we did unregister (no longer in proc_read output); false if otherwise
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:  try_unregister
+//
+// PROCESSING:
+//
+//    This function attempts to unregister the given PID from the kernel module
+//    task list. 
+//
+// INPUTS:
+//
+//    pid - the PID of the process
+//
+// RETURN:
+//
+//    bool - FALSE, the /proc/mp2/status could not be opened for writing 
+//    	     TRUE, if the task is not registered 
+//
+// IMPLEMENTATION NOTES
+//
+//   The try_unregister function uses a file handle to the /proc/mp2/status 
+//   and then writes a formatted yield message to the file. It closes the file
+//   after it has finished writing to it. 
+//
+///////////////////////////////////////////////////////////////////////////////
 bool try_unregister(pid_t pid){
 
   FILE *mp2_proc;	// for /proc/mp2/status file handler
@@ -105,6 +233,32 @@ bool try_unregister(pid_t pid){
   return !is_registered(pid);
 }
 
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:  main
+//
+// PROCESSING:
+//
+//    This function tests the register, unregister, and yield functions from 
+//    user space. 
+//
+// INPUTS:
+//
+//    argc - the number of arguments passed to the program
+//    argv - the command line vector that contains the arguments passed to the program
+//
+// RETURN:
+//
+//    int - (0) default with no errors
+//          (-1) unable to register the PID 
+//
+// IMPLEMENTATION NOTES
+//
+//   The main function tests all the functions that were implemented in kernel 
+//   space that the user-space application will use in order to register and 
+//   unregister with the kernel module, and to change it status using yield.  
+//
+///////////////////////////////////////////////////////////////////////////////
 int main(int argc, char* argv[])
 {
   pid_t mypid;
