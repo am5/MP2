@@ -1,6 +1,40 @@
+///////////////////////////////////////////////////////////////////////////////
+//
+// MP2:		Rate Monotonic CPU Scheduler
+// Name:    mp2.c
+// Date: 	10/1/2011
+// Group:	20: Intisar Malhi, Alexandra Mirtcheva, and Roberto Moreno
+// Description: This source implements a CPU scheduler for the Liu and Layland
+//		Periodic Task Model, based the on the Rate-Monotonic Scheduler.
+//              Implemented using a Linux Kernel Module and the Proc Filesystem.
+//		Compiled for Fedora Core 15 64-bits, Linux Kernel 2.60.40. 
+//
+///////////////////////////////////////////////////////////////////////////////
+
 #include "mp2.h"
 
-//HELPER FUNCTION TO INITIALIZE A TIMER WITH A SINGLE CALL
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:  timer_init
+//
+// PROCESSING:
+//
+//    This is a helper function to initialize a timer with a single call. 
+//
+// INPUTS:
+//
+//    timer 	- the timer list
+//    function  - function pointer 
+//
+// RETURN:
+//
+//   None
+//
+// IMPLEMENTATION NOTES
+//
+//   None 
+//
+///////////////////////////////////////////////////////////////////////////////
 inline void timer_init(struct timer_list  *timer, void (*function)(unsigned long))
 {
   BUG_ON(timer==NULL || function==NULL);
@@ -9,9 +43,30 @@ inline void timer_init(struct timer_list  *timer, void (*function)(unsigned long
   timer->data=(unsigned long) timer;
 }
 
-//THIS IS A HELPER FUNCTION TO SET A TIMER WITH ONE SINGLE CALL
-//KERNEL TIMERS ARE ABOLUTE AND EXPRESSED IN JIFFIES SINCE BOOT.
-//THIS HELPER FUNCTION SPECIFY THE RELATIVE TIME IN MILLISECONDS
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:  set_timer
+//
+// PROCESSING:
+//
+//    This is a helper function to set a timer with a single call, and 
+//    specifies the relative time in milliseconds. 
+//    (Kernel timers are absolute and expressed in jiffies)
+//
+// INPUTS:
+//
+//    tlist 	    - the timer list
+//    release_time  - the time when the current task has to be released. 
+//
+// RETURN:
+//
+//   None
+//
+// IMPLEMENTATION NOTES
+//
+//   None 
+//
+///////////////////////////////////////////////////////////////////////////////
 inline void set_timer(struct timer_list* tlist, long release_time)
 {
   BUG_ON(tlist==NULL);
@@ -19,25 +74,85 @@ inline void set_timer(struct timer_list* tlist, long release_time)
   mod_timer(tlist, tlist->expires);
 }
 
-//THIS IS THE TIMER HANDLER (INTERRUPT CONTEXT)
-//THIS MUST BE VERY FAST SO WE USE A TWO HALVES APPROACH
-//WE DONT UPDATE HERE BUT SIGNAL THE THREAD THAT AN UPDATE MUST OCCUR
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:  up_handler
+//
+// PROCESSING:
+//
+//    This function implements the timer handler; it signals the dispatcher 
+//    thread that an update much occur. 
+//    (This must be very fast so we have to use a two halves approach)
+//
+// INPUTS:
+//
+//    ptr - points to the PID of the thread to be ran  
+//
+// RETURN:
+//
+//   None
+//
+// IMPLEMENTATION NOTES
+//
+//   None 
+//
+///////////////////////////////////////////////////////////////////////////////
 void up_handler(unsigned long ptr)
 {
   //SCHEDULE THE THREAD TO RUN (WAKE UP THE THREAD)
   wake_up_process(dispatch_kthread);
 }
 
-//Inserts task in list 
-//called by REGISTER
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:  _insert_task
+//
+// PROCESSING:
+//
+//    This funtion inserts the current task in the task list. 
+//
+// INPUTS:
+//
+//    t - the task structure to be inserted into the task list  
+//
+// RETURN:
+//
+//   None
+//
+// IMPLEMENTATION NOTES
+//
+//   This function is called by the register_task function. 
+//
+///////////////////////////////////////////////////////////////////////////////
 void _insert_task(struct mp2_task_struct* t)
 {
   BUG_ON(t==NULL);
   list_add_tail(&t->task_node, &mp2_task_list);
 }
 
-//validates the PID
-//returns node if PID exist in list
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:  _lookup_task
+//
+// PROCESSING:
+//
+//    This funtion this function looks up the task specified by the given PID
+//    and returns the task structure to the calling function 
+//
+// INPUTS:
+//
+//    pid - the PID of the task structure that is being searched for in the 
+//          list of tasks.  
+//
+// RETURN:
+//
+//   mp2_task_struct - the task structure that corresponds to the given PID. 
+//
+// IMPLEMENTATION NOTES
+//
+//   None.  
+//
+///////////////////////////////////////////////////////////////////////////////
 struct mp2_task_struct* _lookup_task(long pid)
 {
   struct list_head *pos;
@@ -53,9 +168,38 @@ struct mp2_task_struct* _lookup_task(long pid)
   return NULL;
 }
 
-//admission control
-//returns true if OK to admit
-bool shouldAdmit(long period, long processingTime)
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:  should_admit
+//
+// PROCESSING:
+//
+//    This function implements the admission control 
+//
+// INPUTS:
+//
+//    period -		the time from when a job begins executing until the time the
+//			next job starts running 
+//    processing time - the total time it takes for a single job to run 
+//
+// RETURN:
+//
+//   bool - TRUE if the function should be admitted (the current task can be 
+//          scheduled without missing any deadline according to the utilization 
+//          bound-based method). 
+//          FALSE if the function should not be admitted (the current task cannot
+//          be scheduled without missing any deadline according to the utilization 
+//          bound-based method)
+//
+// IMPLEMENTATION NOTES
+//
+//   The admission criteria is based on the utilization bound-based method: 
+//   the method establishes that a task is schedulable if the sum of the processing 
+//   time of all tasks in system divided by the period of all tasks in the system
+//   is less than 0.693. 
+//
+///////////////////////////////////////////////////////////////////////////////
+bool should_admit(long period, long processingTime)
 {
   //*****NEEDS UPDATE TO NOT USE FLOATS****** (Intisar)
   long admissionThreshold = 0.693;
@@ -77,9 +221,38 @@ bool shouldAdmit(long period, long processingTime)
     return false;
 }
 
-
-// register this PID from the task list.
-// Return 0 if the task is registered, -1 if it was not
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:  register_task
+//
+// PROCESSING:
+//
+//    This funtion implements the task registration
+//
+// INPUTS:
+//
+//    pid - 		the process ID of the calling task
+//    period -		the time from when a job of the calling task begins 
+//			executing until the time the next job of the calling task
+//			starts running 
+//    processing time - the total time it takes for a single job to run of the 
+//			calling task to run
+//
+// RETURN:
+//
+//   int - (-1) if there is no task associated with the given PID
+//	    (0) if the task is registered successfully. 
+//
+// IMPLEMENTATION NOTES
+//
+//   The register_task function calls admission control before registering
+//   the specified task in order to verify that it's schedulable. If the task
+//   passes admission control, then the register_task function allocates enough
+//   memory for it, initializes the task structure variables, sets the task 
+//   state to TASK_INTERRUPTIBLE (SLEEPING), initializes the timer, and 
+//   inserts the task into the task list. 
+//
+///////////////////////////////////////////////////////////////////////////////
 int register_task(long pid, long period, long processingTime)
 {
   struct mp2_task_struct *p;
@@ -87,9 +260,8 @@ int register_task(long pid, long period, long processingTime)
   //only add if PID doesn't already exist
   if(_lookup_task(pid) != NULL) return -1;
   
-  
   //admission control
-  if(!shouldAdmit(period, processingTime)) return -1; 
+  if(!should_admit(period, processingTime)) return -1; 
 
   p = kmalloc(sizeof(struct mp2_task_struct), GFP_KERNEL);
 
@@ -104,14 +276,14 @@ int register_task(long pid, long period, long processingTime)
     return -1;
   }
 
-  //update task struct
+  // Update the task structure
   p->pid = pid;
   p->period = period;
   p->ptime = processingTime;
   set_task_state(p->linux_task, TASK_INTERRUPTIBLE);
   init_timer(&(p->wakeup_timer));
 
-  //insert task
+  // Insert the task into the task list 
   mutex_lock(&mp2_mutex);
   _insert_task(p);
   mutex_unlock(&mp2_mutex);
@@ -120,8 +292,30 @@ int register_task(long pid, long period, long processingTime)
   return 0;
 }
 
-// Un-register this PID from the task list.
-// Return 0 if the task is removed from the list, -1 if it was not found
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:  unregister_task
+//
+// PROCESSING:
+//
+//    This funtion implements the task de-registration
+//
+// INPUTS:
+//
+//    pid - the process ID of the calling task
+//
+// RETURN:
+//
+//   int - (-1) if there is no task associated with the given PID
+//	   (0) if the task is registered successfully. 
+//
+// IMPLEMENTATION NOTES
+//
+//   The unregister_task function uses the Linux kernel linked-list
+//   API to search for a given task. If the task is found in the list, the 
+//   memory is freed and the node is removed from the task list. 
+//
+///////////////////////////////////////////////////////////////////////////////
 int unregister_task(long pid)
 {
   struct list_head *pos, *tmp;
@@ -148,15 +342,98 @@ int unregister_task(long pid)
   return found;
 }
 
-// Displays "PID period processing_time" in /proc/mp2/status when read.
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:  yield_task
+//
+// PROCESSING:
+//
+//    This funtion implements yields the CPU to the next 
+//
+// INPUTS:
+//
+//    pid - the process ID of the calling task
+//
+// RETURN:
+//
+//   int - (-1) if there is no task associated with the given PID
+//	   (0) if the task is registered successfully. 
+//
+// IMPLEMENTATION NOTES
+//
+//   The unregister_task function uses the Linux kernel linked-list
+//   API to search for a given task. If the task is found in the list, the 
+//   memory is freed and the node is removed from the task list. 
+//
+///////////////////////////////////////////////////////////////////////////////
+int yield_task(long pid)
+{
+  struct list_head *pos, *tmp;
+  struct mp2_task_struct *p;
+
+  // loop through the list until we find our PID
+  list_for_each_safe(pos, tmp, &mp2_task_list)
+  {
+    p = list_entry(pos, struct mp2_task_struct, task_node);
+    // is this is our task?
+    if(p->pid == pid){
+      printk(KERN_INFO "yield_task: Found node with PID %ld\n", p->pid);
+    } 
+  }
+ 
+  // get the task by given PID
+  p->linux_task = find_task_by_pid(pid);
+  if(p->linux_task == NULL){
+    // no task was found associated with given PID
+    printk(KERN_INFO "yield_task: No task associated with PID %ld\n", pid);
+    // free the memory
+    return -1;
+  }
+  // setup the wakeup_timer
+  // change task state to sleeping
+  set_task_state(p->linux_task, TASK_UNINTERRUPTIBLE);
+  printk(KERN_INFO "Set PID %ld to sleep.\n", pid);
+  return 0;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:  proc_registration_read
+//
+// PROCESSING:
+//
+//    This funtion displays the PID, period, and processing time when the 
+//    /proc/mp2/status file is read. 
+//
+// INPUTS:
+//
+//    page 	- the location into which the user data is being written 
+//    start 	- the argument that specifies when the data begins (when
+//		  returning more than a page of data)
+//    off 	- the argument that specifies where data end (when returning
+//                more than a page of data)
+//    count 	- the maximum number of characters that can be written 
+//    eof 	- the end-of-file argument that is set when all the data
+//		  has been written 
+//    data 	- the private data to be written to the file 
+//
+// RETURN:
+//
+//   int - greater than (0) if there is data to be read in the status file 
+//
+// IMPLEMENTATION NOTES
+//
+//   None.
+//
+///////////////////////////////////////////////////////////////////////////////
 int proc_registration_read(char *page, char **start, off_t off, int count, int* eof, void* data)
 {
-  printk(KERN_INFO "Reading from proc file\n");
-  // should return the number of bytes printed
-
   off_t i=0;
   struct list_head *pos;
   struct mp2_task_struct *p;
+
+  printk(KERN_INFO "Reading from proc file\n");
+  // should return the number of bytes printed
 
   mutex_lock(&mp2_mutex);
   // loop through the task list and print the PID, period and processing time (space delimited)
@@ -170,15 +447,44 @@ int proc_registration_read(char *page, char **start, off_t off, int count, int* 
   return i;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:  proc_registration_write
+//
+// PROCESSING:
+//
+//    This function writes to the /proc/mp2/status file 
+//
+// INPUTS:
+//
+//    file 	- the open file structure
+//    buffer 	- the string of data being passed from user to kernel space
+//    count 	- the amount of characters that are being written 
+//    data 	- pointer to private data 
+//
+// RETURN:
+//
+//   int - the number of characters that were written. 
+//
+// IMPLEMENTATION NOTES
+//
+//   The proc_registration_write function processes the message type based on 
+//   the first character. If:
+//   "R", the function calls the register_task function with the given PID,
+//        period and processing time. 
+//   "Y", the function calls the yield_task function with the given PID
+//   "D", the function calls the unregister_task function with the given PID 
+//
+///////////////////////////////////////////////////////////////////////////////
 int proc_registration_write(struct file *file, const char *buffer, unsigned long count, void *data)
 {
-  printk(KERN_INFO "Writing to proc file\n");
-
   char *proc_buffer;
   char *action;
   long pid, processingTime;
   int status;
   long period;
+
+  printk(KERN_INFO "Writing to proc file\n");
 
   proc_buffer=kmalloc(count, GFP_KERNEL);
   action=kmalloc(2, GFP_KERNEL);
@@ -199,6 +505,7 @@ int proc_registration_write(struct file *file, const char *buffer, unsigned long
   if(strcmp(action, "Y")==0){
     printk(KERN_INFO "Going to yield PID %ld\n", pid);
     // perform yield
+    yield_task(pid);
   }
   // free the memory
   kfree(proc_buffer);
@@ -207,7 +514,28 @@ int proc_registration_write(struct file *file, const char *buffer, unsigned long
   return count;
 }
 
-// Frees the memory from the list
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME: _destroy_task_list
+//
+// PROCESSING:
+//
+//    This function de-alloactes the memory held by the task list 
+//
+// INPUTS:
+//
+//    None.
+//
+// RETURN:
+//
+//   None. 
+//
+// IMPLEMENTATION NOTES
+//
+//   The _destroy_task_list function uses the Linux kernel linked list API in order
+//   to iterate through the list and deallocate memory for each node in the list. 
+//
+///////////////////////////////////////////////////////////////////////////////
 void _destroy_task_list(void)
 {
   struct list_head *pos, *tmp;
@@ -221,8 +549,29 @@ void _destroy_task_list(void)
       kfree(p);
     }
 }
-//this function will run in the dispatch thread
-//and perform any scheduling updates as needed
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME: perform_scheduling
+//
+// PROCESSING:
+//
+//    This function starts the dispatcher thread and performs any scheduling
+//    updates 
+//
+// INPUTS:
+//
+//    data - pointer to private data 
+//
+// RETURN:
+//
+//   int -  
+//
+// IMPLEMENTATION NOTES
+//
+//   
+//
+///////////////////////////////////////////////////////////////////////////////
 int perform_scheduling(void *data)
 {
   while(1)
@@ -237,8 +586,30 @@ int perform_scheduling(void *data)
   return 0;
 }
 
-//THIS FUNCTION GETS EXECUTED WHEN THE MODULE GETS LOADED
-//NOTE THE __INIT ANNOTATION AND THE FUNCTION PROTOTYPE
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME: my_module_init
+//
+// PROCESSING:
+//
+//    This function gets executed when the module gets loaded
+//
+// INPUTS:
+//
+//    None. 
+//
+// RETURN:
+//
+//   int - returns 0 
+//
+// IMPLEMENTATION NOTES
+//
+//   The my_module_init function calls the timer_init function with the 
+//   timer_list structure and a function pointer to the up_handler function.
+//   It initializes the proc_file entry variables and creates the dispatcher
+//   thread.
+//   
+///////////////////////////////////////////////////////////////////////////////
 int __init my_module_init(void)
 {
   timer_init(&up_timer, up_handler);
@@ -254,8 +625,28 @@ int __init my_module_init(void)
   return 0;   
 }
 
-//THIS FUNCTION GETS EXECUTED WHEN THE MODULE GETS UNLOADED
-//NOTE THE __EXIT ANNOTATION AND THE FUNCTION PROTOTYPE
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME: my_module_exit
+//
+// PROCESSING:
+//
+//    This function gets executed when the module gets unloaded
+//
+// INPUTS:
+//
+//    None. 
+//
+// RETURN:
+//
+//   None.
+//
+// IMPLEMENTATION NOTES
+//
+//   The my_module_exit function removes the proc filesystem entries and 
+//   deallocates memory. 
+//   
+///////////////////////////////////////////////////////////////////////////////
 void __exit my_module_exit(void)
 {
   remove_proc_entry("status", mp2_proc_dir);
@@ -269,10 +660,10 @@ void __exit my_module_exit(void)
   printk(KERN_INFO "MP2 Module UNLOADED\n");
 }
 
-//WE REGISTER OUR INIT AND EXIT FUNCTIONS HERE SO INSMOD CAN RUN THEM
-//MODULE_INIT AND MODULE_EXIT ARE MACROS DEFINED IN MODULE.H
+// WE REGISTER OUR INIT AND EXIT FUNCTIONS HERE SO INSMOD CAN RUN THEM
+// MODULE_INIT AND MODULE_EXIT ARE MACROS DEFINED IN MODULE.H
 module_init(my_module_init);
 module_exit(my_module_exit);
 
-//THIS IS REQUIRED BY THE KERNEL
+// THIS IS REQUIRED BY THE KERNEL
 MODULE_LICENSE("GPL");
