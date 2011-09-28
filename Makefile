@@ -14,7 +14,7 @@ obj-m:= mp2.o
 modules:
 	$(MAKE) -C $(KERNEL_SRC) M=$(SUBDIR) modules
 
-app: userapp.c userapp.h
+app: userapp.c
 	$(GCC) -o userapp userapp.c
 
 clean:
