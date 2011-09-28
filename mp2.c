@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 // MP2:		Rate Monotonic CPU Scheduler
-// Name:    mp2.c
+// Name:        mp2.c
 // Date: 	10/1/2011
 // Group:	20: Intisar Malhi, Alexandra Mirtcheva, and Roberto Moreno
 // Description: This source implements a CPU scheduler for the Liu and Layland
