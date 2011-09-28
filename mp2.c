@@ -107,7 +107,7 @@ int register_task(long pid, long period, long processingTime)
   p->pid = pid;
   p->period = period;
   p->ptime = processingTime;
-  set_task_state(p->linux_task, TASK_UNINTERRUPTIBLE);
+  set_task_state(p->linux_task, TASK_INTERRUPTIBLE);
 
   //insert task
   mutex_lock(&mp2_mutex);
@@ -146,11 +146,26 @@ int unregister_task(long pid)
   return found;
 }
 
+// Displays "PID period processing_time" in /proc/mp2/status when read.
 int proc_registration_read(char *page, char **start, off_t off, int count, int* eof, void* data)
 {
   printk(KERN_INFO "Reading from proc file\n");
   // should return the number of bytes printed
-  return 1;
+
+  off_t i=0;
+  struct list_head *pos;
+  struct mp2_task_struct *p;
+
+  mutex_lock(&mp2_mutex);
+  // loop through the task list and print the PID, period and processing time (space delimited)
+  list_for_each(pos, &mp2_task_list)
+  {
+    p = list_entry(pos, struct mp2_task_struct, task_node);
+    i += sprintf(page+off+i, "%ld %ld %ld\n", p->pid, p->period, p->ptime);
+  }
+  mutex_unlock(&mp2_mutex);
+  *eof=1;
+  return i;
 }
 
 int proc_registration_write(struct file *file, const char *buffer, unsigned long count, void *data)
@@ -178,6 +193,10 @@ int proc_registration_write(struct file *file, const char *buffer, unsigned long
     printk(KERN_INFO "Going to un-register PID %ld\n", pid);
     // perform de-registration
     unregister_task(pid);
+  }
+  if(strcmp(action, "Y")==0){
+    printk(KERN_INFO "Going to yield PID %ld\n", pid);
+    // perform yield
   }
   // free the memory
   kfree(proc_buffer);
