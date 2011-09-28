@@ -25,6 +25,10 @@
 #define MS_TO_JIFF(j) ((j * HZ) / 1000)
 #define UPDATE_TIME 5000
 
+#define TASK_STATE_READY     0
+#define TASK_STATE_RUNNING   1
+#define TASK_STATE_SLEEPING  2
+
 // PROCESS CONTROL BLOCK 
 struct mp2_task_struct
 {
@@ -34,6 +38,7 @@ struct mp2_task_struct
   struct list_head task_node;
   long unsigned period;			// period
   long unsigned ptime;			// processing time
+  int  task_state;
 };
 
 //PROC FILESYSTEM ENTRIES

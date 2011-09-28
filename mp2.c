@@ -280,7 +280,7 @@ int register_task(long pid, long period, long processingTime)
   p->pid = pid;
   p->period = period;
   p->ptime = processingTime;
-  set_task_state(p->linux_task, TASK_INTERRUPTIBLE);
+  p->task_state = TASK_STATE_SLEEPING;
   timer_init(&(p->wakeup_timer), up_handler);
 
   // Insert the task into the task list 
