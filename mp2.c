@@ -281,7 +281,7 @@ int register_task(long pid, long period, long processingTime)
   p->period = period;
   p->ptime = processingTime;
   set_task_state(p->linux_task, TASK_INTERRUPTIBLE);
-  init_timer(&(p->wakeup_timer));
+  timer_init(&(p->wakeup_timer), up_handler);
 
   // Insert the task into the task list 
   mutex_lock(&mp2_mutex);
@@ -544,6 +544,9 @@ void _destroy_task_list(void)
   list_for_each_safe(pos, tmp, &mp2_task_list)
     {
       p = list_entry(pos, struct mp2_task_struct, task_node);
+      //destroy timer
+      del_timer_sync(&(p->wakeup_timer));
+      //remove from list
       list_del(pos);
       printk(KERN_INFO "Destroying task associated with PID %ld\n", p->pid);
       kfree(p);
@@ -612,7 +615,6 @@ int perform_scheduling(void *data)
 ///////////////////////////////////////////////////////////////////////////////
 int __init my_module_init(void)
 {
-  timer_init(&up_timer, up_handler);
   mp2_proc_dir=proc_mkdir("mp2",NULL);
   register_task_file=create_proc_entry("status", 0666, mp2_proc_dir);
   register_task_file->read_proc= proc_registration_read;
@@ -651,7 +653,6 @@ void __exit my_module_exit(void)
 {
   remove_proc_entry("status", mp2_proc_dir);
   remove_proc_entry("mp2", NULL);
-  del_timer_sync(&up_timer);
   
   stop_dispatch_thread=1;
   wake_up_process(dispatch_kthread);
