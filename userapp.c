@@ -119,10 +119,11 @@ int main(int argc, char* argv[])
   // register with the module
   if(!try_register(mypid, period, processTime)){
     printf("Unable to register this PID %ld\n", mypid);
+    return -1;
   }
   // writes yield to proc/mp2/status file for this pid
   try_yielding(mypid);
-  sleep(10);	// just for testing
+  sleep(10);	// just for testing, remove once complete and uncomment below
 /*
   for (k=0;k<10000; k++)
   for(j=0; j<30; j++)
