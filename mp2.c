@@ -348,7 +348,8 @@ int unregister_task(long pid)
 //
 // PROCESSING:
 //
-//    This funtion implements yields the CPU to the next 
+//    This function yields the CPU to the next task in the READY queue
+//    with the highest priority 
 //
 // INPUTS:
 //
@@ -357,7 +358,7 @@ int unregister_task(long pid)
 // RETURN:
 //
 //   int - (-1) if there is no task associated with the given PID
-//	   (0) if the task is registered successfully. 
+//	        (0) if the task is registered successfully. 
 //
 // IMPLEMENTATION NOTES
 //
@@ -370,6 +371,7 @@ int yield_task(long pid)
 {
   struct list_head *pos, *tmp;
   struct mp2_task_struct *p;
+  long unsigned release_time;
 
   // loop through the list until we find our PID
   list_for_each_safe(pos, tmp, &mp2_task_list)
@@ -380,7 +382,6 @@ int yield_task(long pid)
       printk(KERN_INFO "yield_task: Found node with PID %ld\n", p->pid);
     } 
   }
- 
   // get the task by given PID
   p->linux_task = find_task_by_pid(pid);
   if(p->linux_task == NULL){
@@ -389,10 +390,18 @@ int yield_task(long pid)
     // free the memory
     return -1;
   }
-  // setup the wakeup_timer
-  // change task state to sleeping
-  set_task_state(p->linux_task, TASK_UNINTERRUPTIBLE);
-  printk(KERN_INFO "Set PID %ld to sleep.\n", pid);
+
+  release_time = p->period - p->ptime; 
+  if(release_time > 0)
+  {
+  	// change task state to sleeping
+  	set_task_state(p->linux_task, TASK_UNINTERRUPTIBLE);
+    // setup the wakeup_timer
+	set_timer(&up_timer, release_time);
+    // pre-empt the CPU to the next READY application 
+    // with the highest priority
+    schedule();
+  }
   return 0;
 }
 
