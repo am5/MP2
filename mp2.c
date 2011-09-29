@@ -394,13 +394,13 @@ int yield_task(long pid)
   release_time = p->period - p->ptime; 
   if(release_time > 0)
   {
-  	// change task state to sleeping
-  	set_task_state(p->linux_task, TASK_UNINTERRUPTIBLE);
-    // setup the wakeup_timer
+	// change task state to sleeping
+	set_task_state(p->linux_task, TASK_UNINTERRUPTIBLE);
+	// setup the wakeup_timer
 	set_timer(&up_timer, release_time);
-    // pre-empt the CPU to the next READY application 
-    // with the highest priority
-    schedule();
+	// pre-empt the CPU to the next READY application 
+	// with the highest priority
+	schedule();
   }
   return 0;
 }
