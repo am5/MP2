@@ -124,15 +124,29 @@ bool is_registered(pid_t pid){
 //
 // IMPLEMENTATION NOTES
 //
-//   The try_register function uses a system call that uses a formatted string 
-//   as input. After the call to the kernel, the function verifies that the 
-//   PID appears in the proc file by calling is_registered. 
+//   The try_register function uses a file handle to the /proc/mp2/status 
+//   and then writes a formatted register message to the file. After the call 
+//   to the kernel, the function verifies that the PID appears in the proc file 
+//   by calling is_registered. 
 //
 ///////////////////////////////////////////////////////////////////////////////
 bool try_register(pid_t pid, long period, long processTime){
-  char cmd[120];
-  sprintf(cmd, "echo 'R %u %u %u'>//proc/mp2/status", pid, period, processTime);
-  system(cmd);
+  FILE *mp2_proc;	// for /proc/mp2/status file handler
+
+  mp2_proc = fopen("/proc/mp2/status", "w");
+  if(mp2_proc == NULL){
+    // an error occurred when trying to read the file
+    printf("Unable to open /proc/mp2/status for writing\n");
+    return false;
+  }
+
+  // create the string to write to the proc file
+  char action[128];
+  sprintf(action, "R %d %ld %ld", pid, period, processTime);
+  fputs(action, mp2_proc);
+  
+  // close the file
+  fclose(mp2_proc);
 
   // let's check if we are a registered process
   return is_registered(pid);
