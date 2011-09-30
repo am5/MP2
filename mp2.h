@@ -39,6 +39,7 @@ struct mp2_task_struct
   struct list_head task_node;
   long unsigned period;			// period
   long unsigned ptime;			// processing time
+  long unsigned next_period;      // the next period of the task
   int  task_state;
 };
 
@@ -48,7 +49,6 @@ static struct proc_dir_entry *register_task_file;
 
 struct mp2_task_struct *current_task;
 struct task_struct* dispatch_kthread;
-timeval t0;
 int stop_dispatch_thread=0;
 
 LIST_HEAD(mp2_task_list);
