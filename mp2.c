@@ -368,9 +368,11 @@ int unregister_task(long pid)
 int calculate_next_period(struct mp2_task_struct *t)
 {
 	int next_period;
-	next_period = t->next_period + period;
+	/*
+        next_period = t->next_period + period;
 	t->next_period = next_release_time;
-	return next_period;
+	*/
+        return next_period;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -400,7 +402,7 @@ int calculate_next_period(struct mp2_task_struct *t)
 ///////////////////////////////////////////////////////////////////////////////
 int yield_task(long pid)
 {
-  struct list_head *pos, *tmp;
+/*  struct list_head *pos, *tmp;
   struct mp2_task_struct *p;
   // indicate that it's the first time we're calling yield
   if(first_yield_call == 0)
@@ -439,7 +441,7 @@ int yield_task(long pid)
     // pre-empt the CPU to the next READY application 
     // with the highest priority
     schedule();
-  }
+  }*/
   return 0;
 }
 
@@ -624,15 +626,61 @@ void _destroy_task_list(void)
 ///////////////////////////////////////////////////////////////////////////////
 int perform_scheduling(void *data)
 {
+  struct list_head *pos;
+  struct mp2_task_struct *p;
+  struct mp2_task_struct *highest_priority = NULL;
+  struct sched_param highest_prio_sparam;
+
   while(1)
   {
     mutex_lock(&mp2_mutex);
-    if(stop_dispatch_thread==1) break;
-   
-    /******DO SCHEDULING JOB ********/
+    if(stop_dispatch_thread==1)
+    {
+      mutex_unlock(&mp2_mutex);
+      break;
+    }
+    
   
+    //find highest priority
+    list_for_each(pos, &mp2_task_list)
+    {
+      p = list_entry(pos, struct mp2_task_struct, task_node);
+      if(p->task_state == TASK_STATE_READY && highest_priority != NULL)
+      {
+         if(p->period < highest_priority->period)
+           highest_priority = p;
+      }
+    }
+
+    //context switch
+    if(highest_priority != NULL)
+    {
+      highest_priority->task_state = TASK_STATE_RUNNING;
+      
+      wake_up_process(highest_priority->linux_task);
+      highest_prio_sparam.sched_priority = MAX_USER_RT_PRIO-1;
+      sched_setscheduler(highest_priority->linux_task, SCHED_FIFO, &highest_prio_sparam);
+    }
+  
+    if(current_task != NULL)
+    {  
+      struct sched_param sparam;
+      sparam.sched_priority = 0;
+      sched_setscheduler(current_task->linux_task, SCHED_NORMAL, &sparam);
+         
+      //set to READY only if it was running
+      if(current_task->task_state == TASK_STATE_RUNNING)
+        current_task->task_state = TASK_STATE_READY;
+    }
+
+    //set new running task(if any) to current now
+    current_task = highest_priority;
+    
+    //put scheduler to sleep until woken up again  
+    set_task_state(dispatch_kthread, TASK_INTERRUPTIBLE);
+    mutex_unlock(&mp2_mutex);
   }
-  mutex_unlock(&mp2_mutex);
+
   return 0;
 }
 
@@ -668,6 +716,12 @@ int __init my_module_init(void)
   register_task_file->write_proc=proc_registration_write;
 
   dispatch_kthread = kthread_create(perform_scheduling, NULL, "kmp2");  
+
+  //set scheduling thread to higher priority than task so that this cannot be preempted.
+  struct sched_param sparam;
+  sparam.sched_priority = MAX_RT_PRIO;
+  sched_setscheduler(dispatch_kthread, SCHED_FIFO, &sparam);
+
 
   //THE EQUIVALENT TO PRINTF IN KERNEL SPACE
   printk(KERN_INFO "MP2 Module LOADED\n");

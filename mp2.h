@@ -19,7 +19,7 @@
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <asm/uaccess.h>
-#include <sys/time.h>
+//#include <sys/time.h>
 #include "mp2_given.h"
 
 #define JIFF_TO_MS(t) ((t*1000)/ HZ)
@@ -51,7 +51,7 @@ struct mp2_task_struct *current_task;
 struct task_struct* dispatch_kthread;
 int stop_dispatch_thread=0;
 int first_yield_call = 0;
-timeval t0;  
+//timeval t0;  
 
 LIST_HEAD(mp2_task_list);
 static DEFINE_MUTEX(mp2_mutex);
