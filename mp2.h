@@ -19,6 +19,7 @@
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <asm/uaccess.h>
+#include <sys/time.h>
 #include "mp2_given.h"
 
 #define JIFF_TO_MS(t) ((t*1000)/ HZ)
@@ -47,6 +48,7 @@ static struct proc_dir_entry *register_task_file;
 
 struct mp2_task_struct *current_task;
 struct task_struct* dispatch_kthread;
+timeval t0;
 int stop_dispatch_thread=0;
 
 LIST_HEAD(mp2_task_list);
