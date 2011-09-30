@@ -201,18 +201,17 @@ struct mp2_task_struct* _lookup_task(long pid)
 ///////////////////////////////////////////////////////////////////////////////
 bool should_admit(long period, long processingTime)
 {
-  //*****NEEDS UPDATE TO NOT USE FLOATS****** (Intisar)
-  long admissionThreshold = 0.693;
+  long admissionThreshold = 693; //normalized by multiplying by 1000
   struct list_head *pos;
   struct mp2_task_struct *p;
   long summation = 0;
 
-  summation = summation + (processingTime/period);
+  summation = summation + PROCESSING_TIME_RATIO(processingTime, period);
 
   list_for_each(pos, &mp2_task_list)
   {
     p = list_entry(pos, struct mp2_task_struct, task_node);
-    summation = summation + (p->ptime / p->period);    
+    summation = summation + PROCESSING_TIME_RATIO(p->ptime, p->period);    
   }
 
   if(summation <= admissionThreshold)
@@ -367,7 +366,7 @@ int unregister_task(long pid)
 ///////////////////////////////////////////////////////////////////////////////
 int calculate_next_period(struct mp2_task_struct *t)
 {
-	int next_period;
+	int next_period = 0;
 	/*
         next_period = t->next_period + period;
 	t->next_period = next_release_time;
@@ -710,6 +709,8 @@ int perform_scheduling(void *data)
 ///////////////////////////////////////////////////////////////////////////////
 int __init my_module_init(void)
 {
+  struct sched_param sparam;
+
   mp2_proc_dir=proc_mkdir("mp2",NULL);
   register_task_file=create_proc_entry("status", 0666, mp2_proc_dir);
   register_task_file->read_proc= proc_registration_read;
@@ -718,10 +719,8 @@ int __init my_module_init(void)
   dispatch_kthread = kthread_create(perform_scheduling, NULL, "kmp2");  
 
   //set scheduling thread to higher priority than task so that this cannot be preempted.
-  struct sched_param sparam;
   sparam.sched_priority = MAX_RT_PRIO;
   sched_setscheduler(dispatch_kthread, SCHED_FIFO, &sparam);
-
 
   //THE EQUIVALENT TO PRINTF IN KERNEL SPACE
   printk(KERN_INFO "MP2 Module LOADED\n");

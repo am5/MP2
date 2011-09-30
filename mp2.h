@@ -26,6 +26,8 @@
 #define MS_TO_JIFF(j) ((j * HZ) / 1000)
 #define UPDATE_TIME 5000
 
+#define PROCESSING_TIME_RATIO(t, p) ((t*1000) / p)
+ 
 #define TASK_STATE_READY     0
 #define TASK_STATE_RUNNING   1
 #define TASK_STATE_SLEEPING  2
