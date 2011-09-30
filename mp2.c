@@ -344,6 +344,37 @@ int unregister_task(long pid)
 
 ///////////////////////////////////////////////////////////////////////////////
 //
+// FUNCTION NAME:  calculate_next_period
+//
+// PROCESSING:
+//
+//    This function calculates the next period of the given task
+//
+// INPUTS:
+//
+//    t- the task structure of the passed in task
+//
+// RETURN:
+//
+//   int - returns the next release time of the task
+//
+// IMPLEMENTATION NOTES
+//
+//   The calculate_next_period uses the current release time (beginning of the
+//   next period) and adds the period of the task in order to calculate the 
+//   next period. 
+//
+///////////////////////////////////////////////////////////////////////////////
+int calculate_next_period(struct mp2_task_struct *t)
+{
+	int next_period;
+	next_period = t->next_period + period;
+	t->next_period = next_release_time;
+	return next_period;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//
 // FUNCTION NAME:  yield_task
 //
 // PROCESSING:
@@ -371,7 +402,13 @@ int yield_task(long pid)
 {
   struct list_head *pos, *tmp;
   struct mp2_task_struct *p;
-  long unsigned release_time;
+  // indicate that it's the first time we're calling yield
+  if(first_yield_call == 0)
+  {
+	first_yield_call = 1;
+	gettimeofday(&t0, NULL);
+	p->next_period = t0;
+  }
 
   // loop through the list until we find our PID
   list_for_each_safe(pos, tmp, &mp2_task_list)
@@ -391,13 +428,14 @@ int yield_task(long pid)
     return -1;
   }
 
-  release_time = p->period - p->ptime; 
-  if(release_time > 0)
+  calculate_next_period(p);
+  if(p->next_period > gettimeofday())
   {
     // change task state to sleeping
-    set_task_state(p->linux_task, TASK_UNINTERRUPTIBLE);
+    //set_task_state(p->linux_task, TASK_UNINTERRUPTIBLE);
+	p->task_state = SLEEPING;
     // setup the wakeup_timer
-    set_timer(&up_timer, release_time);
+    set_timer(&up_timer, p->next_period);
     // pre-empt the CPU to the next READY application 
     // with the highest priority
     schedule();
