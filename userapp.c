@@ -278,8 +278,8 @@ int main(int argc, char* argv[])
   pid_t mypid;
   int j;
 
-  long period = 200;		// in milliseconds
-  long processTime = 10;	// in milliseconds
+  long period = 20000;		// in milliseconds
+  long processTime = 1000;	// in milliseconds
   
   // get our PID so that we can register
   mypid= syscall(__NR_gettid);
@@ -298,7 +298,7 @@ int main(int argc, char* argv[])
   gettimeofday(&tv, NULL);
   printf("Current time %d\n", tv.tv_sec);
 
-  for(j=1; j<1000; j++)
+  for(j=1; j<100; j++)
   {
 	printf("Factorial %u: %llu\n",j, factorial(10));
         try_yielding(mypid);

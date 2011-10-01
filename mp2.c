@@ -35,12 +35,12 @@
 //   None 
 //
 ///////////////////////////////////////////////////////////////////////////////
-inline void timer_init(struct timer_list  *timer, void (*function)(unsigned long), void (*data)(unsigned long))
+inline void timer_init(struct timer_list  *timer, void (*function)(unsigned long), struct mp2_task_struct * data)
 {
   BUG_ON(timer==NULL || function==NULL);
   init_timer(timer);
   timer->function=function;
-  timer->data=(unsigned long) data;
+  timer->data=(struct mp2_task_struct*) data;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -101,8 +101,9 @@ void up_handler(unsigned long ptr)
 {
   // change the state of the current task to ready since our timer expired
   if(&ptr != NULL)
-  	&ptr->task_state = TASK_STATE_READY;
-  printk(KERN_INFO "Calling our dispatch thread\n");
+  	((struct mp2_task_struct*)ptr)->task_state = TASK_STATE_READY;
+
+  printk(KERN_INFO "Calling our dispatch threadPID %ld\n", ((struct mp2_task_struct*)ptr)->pid);
   //SCHEDULE THE THREAD TO RUN (WAKE UP THE THREAD)
   wake_up_process(dispatch_kthread);
 }
@@ -645,7 +646,7 @@ int perform_scheduling(void *data)
       sched_setscheduler(highest_priority->linux_task, SCHED_FIFO, &highest_prio_sparam);
     }
   
-    if(current_task != NULL)
+    if(current_task != NULL && current_task->pid != highest_priority->pid)
     {  
       struct sched_param sparam;
       sparam.sched_priority = 0;
