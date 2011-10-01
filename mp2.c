@@ -640,9 +640,10 @@ int perform_scheduling(void *data)
     //set new running task(if any) to current now
     current_task = highest_priority;
     
+    mutex_unlock(&mp2_mutex);
     //put scheduler to sleep until woken up again  
     set_task_state(dispatch_kthread, TASK_INTERRUPTIBLE);
-    mutex_unlock(&mp2_mutex);
+    
   }
 
   return 0;
