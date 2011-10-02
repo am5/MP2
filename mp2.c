@@ -364,14 +364,9 @@ int unregister_task(long pid)
 //   next period. 
 //
 ///////////////////////////////////////////////////////////////////////////////
-int calculate_next_period(struct mp2_task_struct *t)
+void calculate_next_period(struct mp2_task_struct *t)
 {
-	int next_period = 0;
-	/*
-        next_period = t->next_period + period;
-	t->next_period = next_release_time;
-	*/
-        return next_period;
+        t->next_period = t->next_period + t->period;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -401,14 +396,13 @@ int calculate_next_period(struct mp2_task_struct *t)
 ///////////////////////////////////////////////////////////////////////////////
 int yield_task(long pid)
 {
-/*  struct list_head *pos, *tmp;
-  struct mp2_task_struct *p;
+  struct list_head *pos, *tmp;
+  struct mp2_task_struct *p = NULL;
   // indicate that it's the first time we're calling yield
   if(first_yield_call == 0)
   {
 	first_yield_call = 1;
-	gettimeofday(&t0, NULL);
-	p->next_period = t0;
+	previous_time = jiffies;
   }
 
   // loop through the list until we find our PID
@@ -420,27 +414,26 @@ int yield_task(long pid)
       printk(KERN_INFO "yield_task: Found node with PID %ld\n", p->pid);
     } 
   }
-  // get the task by given PID
-  p->linux_task = find_task_by_pid(pid);
-  if(p->linux_task == NULL){
-    // no task was found associated with given PID
-    printk(KERN_INFO "yield_task: No task associated with PID %ld\n", pid);
-    // free the memory
-    return -1;
+
+  //if next period has not started yet
+  //  set state to sleeping and wake up timer
+  if(jiffies < MS_TO_JIFF(p->period) + previous_time)
+  {
+    //adjust new previous
+    previous_time = previous_time + MS_TO_JIFF(p->period);
+
+    // change task state to sleeping
+    p->task_state = TASK_STATE_SLEEPING;
+    set_task_state(p->linux_task, TASK_UNINTERRUPTIBLE);
+    
+    // setup the wakeup_timer
+    set_timer(&p->wakeup_timer, p->period);
   }
 
-  calculate_next_period(p);
-  if(p->next_period > gettimeofday())
-  {
-    // change task state to sleeping
-    //set_task_state(p->linux_task, TASK_UNINTERRUPTIBLE);
-	p->task_state = SLEEPING;
-    // setup the wakeup_timer
-    set_timer(&up_timer, p->next_period);
-    // pre-empt the CPU to the next READY application 
-    // with the highest priority
-    schedule();
-  }*/
+  // pre-empt the CPU to the next READY application 
+  // with the highest priority
+  wake_up_process(dispatch_kthread);
+
   return 0;
 }
 
@@ -675,9 +668,10 @@ int perform_scheduling(void *data)
     //set new running task(if any) to current now
     current_task = highest_priority;
     
+    mutex_unlock(&mp2_mutex);
     //put scheduler to sleep until woken up again  
     set_task_state(dispatch_kthread, TASK_INTERRUPTIBLE);
-    mutex_unlock(&mp2_mutex);
+
   }
 
   return 0;

@@ -42,6 +42,7 @@ struct mp2_task_struct
   long unsigned period;			// period
   long unsigned ptime;			// processing time
   long unsigned next_period;    // next release time (beginning of the next period)
+  long unsigned yield_ct;	// keeps track of the number of yields called
   int  task_state;
 };
 
@@ -53,6 +54,7 @@ struct mp2_task_struct *current_task;
 struct task_struct* dispatch_kthread;
 int stop_dispatch_thread=0;
 int first_yield_call = 0;
+long previous_time; 
 //timeval t0;  
 
 LIST_HEAD(mp2_task_list);
