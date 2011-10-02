@@ -43,7 +43,7 @@ long long factorial(int number)
   
   for (i=1; i <= number; i++)
   {
-    retval=retval *i; 
+    retval = retval * i; 
   }
 
   return retval;
@@ -289,6 +289,7 @@ int main(int argc, char* argv[])
     printf("Unable to register this PID %ld\n", mypid);
     return -1;
   }
+
   struct timeval tv;
   gettimeofday(&tv, NULL);
   printf("Current time %d\n", tv.tv_sec);
@@ -297,9 +298,9 @@ int main(int argc, char* argv[])
   gettimeofday(&tv, NULL);
   printf("Current time %d\n", tv.tv_sec);
 
-  for(j=1000; j<10000; j+=1000)
+  for(j=1; j<10; j++)
   {
-	printf("Factorial %u: %llu\n",j, factorial(j));
+	printf("Factorial %u: %llu\n",j, factorial(10));
         try_yielding(mypid);
   	gettimeofday(&tv, NULL);
         printf("Current time %d\n", tv.tv_sec);
@@ -310,4 +311,5 @@ int main(int argc, char* argv[])
   }else{
     printf("We are still registered...\n");
   }
+
 }
