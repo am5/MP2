@@ -297,7 +297,7 @@ int main(int argc, char* argv[])
   gettimeofday(&tv, NULL);
   printf("Current time %d\n", tv.tv_sec);
 
-  for(j=100; j<1000; j+=100)
+  for(j=1000; j<10000; j+=1000)
   {
 	printf("Factorial %u: %llu\n",j, factorial(j));
         try_yielding(mypid);
