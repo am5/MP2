@@ -390,6 +390,8 @@ int yield_task(long pid)
     return -1;
   }
   // setup the wakeup_timer
+  printk(KERN_INFO "yield_task: setting the timer for PID %ld to period %ld\n", pid, p->period);
+  set_timer(&(p->wakeup_timer), p->period);
   // change task state to sleeping
   set_task_state(p->linux_task, TASK_UNINTERRUPTIBLE);
   printk(KERN_INFO "Set PID %ld to sleep.\n", pid);
@@ -490,7 +492,7 @@ int proc_registration_write(struct file *file, const char *buffer, unsigned long
   action=kmalloc(2, GFP_KERNEL);
   status=copy_from_user(proc_buffer, buffer, count);
   sscanf(proc_buffer, "%s %ld %ld %ld", action, &pid, &period, &processingTime);
-  printk(KERN_INFO "From /proc/mp2/status: %s, %ld, %ld\n", action, pid, processingTime); 
+  printk(KERN_INFO "From /proc/mp2/status: %s, %ld, %ld, %ld\n", action, pid, period, processingTime); 
 
   if(strcmp(action, "R")==0){
     printk(KERN_INFO "Going to register PID %ld\n", pid);
@@ -581,9 +583,10 @@ int perform_scheduling(void *data)
   {
     mutex_lock(&mp2_mutex);
     if(stop_dispatch_thread==1) break;
-   
+    
+    mutex_unlock(&mp2_mutex);
     /******DO SCHEDULING JOB ********/
-  
+
   }
   mutex_unlock(&mp2_mutex);
   return 0;
