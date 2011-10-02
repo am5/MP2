@@ -19,12 +19,15 @@
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <asm/uaccess.h>
+//#include <sys/time.h>
 #include "mp2_given.h"
 
 #define JIFF_TO_MS(t) ((t*1000)/ HZ)
 #define MS_TO_JIFF(j) ((j * HZ) / 1000)
 #define UPDATE_TIME 5000
 
+#define PROCESSING_TIME_RATIO(t, p) ((t*1000) / p)
+ 
 #define TASK_STATE_READY     0
 #define TASK_STATE_RUNNING   1
 #define TASK_STATE_SLEEPING  2
@@ -38,6 +41,7 @@ struct mp2_task_struct
   struct list_head task_node;
   long unsigned period;			// period
   long unsigned ptime;			// processing time
+  long unsigned next_period;    // next release time (beginning of the next period)
   int  task_state;
 };
 
@@ -48,6 +52,8 @@ static struct proc_dir_entry *register_task_file;
 struct mp2_task_struct *current_task;
 struct task_struct* dispatch_kthread;
 int stop_dispatch_thread=0;
+int first_yield_call = 0;
+//timeval t0;  
 
 LIST_HEAD(mp2_task_list);
 static DEFINE_MUTEX(mp2_mutex);
