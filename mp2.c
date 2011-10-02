@@ -605,6 +605,7 @@ int perform_scheduling(void *data)
 
   while(1)
   {
+    printk(KERN_INFO "Dispatch thread awake... ");
     mutex_lock(&mp2_mutex);
     if(stop_dispatch_thread==1)
     {
@@ -649,6 +650,7 @@ int perform_scheduling(void *data)
     current_task = highest_priority;
     
     mutex_unlock(&mp2_mutex);
+    printk(KERN_INFO "Dispatch thread going sleep...good night!! ");
     //put scheduler to sleep until woken up again  
     set_task_state(dispatch_kthread, TASK_INTERRUPTIBLE);
     
