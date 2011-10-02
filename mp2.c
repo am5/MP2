@@ -377,32 +377,37 @@ int yield_task(long pid)
   {
     p = list_entry(pos, struct mp2_task_struct, task_node);
     // is this is our task?
-    if(p->pid == pid){
+    if(p->pid == pid)
+    {
       printk(KERN_INFO "yield_task: Found node with PID %ld\n", p->pid);
+      break;
     } 
   }
  
-  // indicate that it's the first time we're calling yield
-  if(p->first_yield_call == 0)
+  if(p != NULL && p->pid == pid)
   {
-	p->first_yield_call = 1;
-	p->previous_time = jiffies;
-  }
+    // indicate that it's the first time we're calling yield
+    if(p->first_yield_call == 0)
+    {
+      p->first_yield_call = 1;
+      p->previous_time = jiffies;
+    }
 
 
-  //if next period has not started yet
-  //  set state to sleeping and wake up timer
-  if(jiffies < MS_TO_JIFF(p->period) + p->previous_time)
-  {
-    //adjust new previous
-    p->previous_time = p->previous_time + MS_TO_JIFF(p->period);
+    //if next period has not started yet
+    //  set state to sleeping and wake up timer
+    if(jiffies < MS_TO_JIFF(p->period) + p->previous_time)
+    {
+      //adjust new previous
+      p->previous_time = p->previous_time + MS_TO_JIFF(p->period);
 
-    // change task state to sleeping
-    p->task_state = TASK_STATE_SLEEPING;
-    set_task_state(p->linux_task, TASK_UNINTERRUPTIBLE);
+      // change task state to sleeping
+      p->task_state = TASK_STATE_SLEEPING;
+      set_task_state(p->linux_task, TASK_UNINTERRUPTIBLE);
     
-    // setup the wakeup_timer
-    set_timer(&p->wakeup_timer, p->period);
+      // setup the wakeup_timer
+      set_timer(&p->wakeup_timer, p->period);
+    }
   }
 
   // pre-empt the CPU to the next READY application 
