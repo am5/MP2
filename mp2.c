@@ -343,34 +343,6 @@ int unregister_task(long pid)
 
 ///////////////////////////////////////////////////////////////////////////////
 //
-// FUNCTION NAME:  calculate_next_period
-//
-// PROCESSING:
-//
-//    This function calculates the next period of the given task
-//
-// INPUTS:
-//
-//    t- the task structure of the passed in task
-//
-// RETURN:
-//
-//   int - returns the next release time of the task
-//
-// IMPLEMENTATION NOTES
-//
-//   The calculate_next_period uses the current release time (beginning of the
-//   next period) and adds the period of the task in order to calculate the 
-//   next period. 
-//
-///////////////////////////////////////////////////////////////////////////////
-void calculate_next_period(struct mp2_task_struct *t)
-{
-        t->next_period = t->next_period + t->period;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-//
 // FUNCTION NAME:  yield_task
 //
 // PROCESSING:
@@ -433,7 +405,7 @@ int yield_task(long pid)
   // pre-empt the CPU to the next READY application 
   // with the highest priority
   wake_up_process(dispatch_kthread);
-
+ 
   return 0;
 }
 
@@ -671,7 +643,7 @@ int perform_scheduling(void *data)
     mutex_unlock(&mp2_mutex);
     //put scheduler to sleep until woken up again  
     set_task_state(dispatch_kthread, TASK_INTERRUPTIBLE);
-
+    
   }
 
   return 0;
