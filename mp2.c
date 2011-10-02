@@ -35,12 +35,12 @@
 //   None 
 //
 ///////////////////////////////////////////////////////////////////////////////
-inline void timer_init(struct timer_list  *timer, void (*function)(unsigned long))
+inline void timer_init(struct timer_list  *timer, void (*function)(unsigned long), void (*data)(unsigned long))
 {
   BUG_ON(timer==NULL || function==NULL);
   init_timer(timer);
   timer->function=function;
-  timer->data=(unsigned long) timer;
+  timer->data=(unsigned long) data;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -99,6 +99,10 @@ inline void set_timer(struct timer_list* tlist, long release_time)
 ///////////////////////////////////////////////////////////////////////////////
 void up_handler(unsigned long ptr)
 {
+  // change the state of the current task to ready since our timer expired
+  if(&ptr != NULL)
+  	&ptr->task_state = TASK_STATE_READY;
+  printk(KERN_INFO "Calling our dispatch thread\n");
   //SCHEDULE THE THREAD TO RUN (WAKE UP THE THREAD)
   wake_up_process(dispatch_kthread);
 }
@@ -281,7 +285,7 @@ int register_task(long pid, long period, long processingTime)
   p->ptime = processingTime;
   p->task_state = TASK_STATE_SLEEPING;
   p->first_yield_call = 0;
-  timer_init(&(p->wakeup_timer), up_handler);
+  timer_init(&(p->wakeup_timer), up_handler, p);
 
   // Insert the task into the task list 
   mutex_lock(&mp2_mutex);
@@ -389,15 +393,16 @@ int yield_task(long pid)
     // indicate that it's the first time we're calling yield
     if(p->first_yield_call == 0)
     {
+      printk(KERN_INFO "This is the first time we're yielding, pid=%ld\n", p->pid);
       p->first_yield_call = 1;
       p->previous_time = jiffies;
     }
-
 
     //if next period has not started yet
     //  set state to sleeping and wake up timer
     if(jiffies < MS_TO_JIFF(p->period) + p->previous_time)
     {
+      printk(KERN_INFO "Our period has not started yet, pid=%ld\n", p->pid);
       //adjust new previous
       p->previous_time = p->previous_time + MS_TO_JIFF(p->period);
 
@@ -405,8 +410,9 @@ int yield_task(long pid)
       p->task_state = TASK_STATE_SLEEPING;
       set_task_state(p->linux_task, TASK_UNINTERRUPTIBLE);
     
+      printk(KERN_INFO "Setting the wakeup timer to %ld\n", p->period);
       // setup the wakeup_timer
-      set_timer(&p->wakeup_timer, p->period);
+      set_timer(&(p->wakeup_timer), p->period);
     }
   }
 
@@ -605,7 +611,7 @@ int perform_scheduling(void *data)
 
   while(1)
   {
-    printk(KERN_INFO "Dispatch thread awake... ");
+    highest_priority = NULL;
     mutex_lock(&mp2_mutex);
     if(stop_dispatch_thread==1)
     {
@@ -620,14 +626,18 @@ int perform_scheduling(void *data)
       p = list_entry(pos, struct mp2_task_struct, task_node);
       if(p->task_state == TASK_STATE_READY && highest_priority != NULL)
       {
-         if(p->period < highest_priority->period)
+         printk("Current PID=%ld, period=%ld\n", p->pid, p->period);
+         if(p->period < highest_priority->period){
+           printk("PID %ld period (%ld) is less than period of highest priority (PID=%ld, period=%ld)\n", p->pid, p->period, highest_priority->pid, highest_priority->period);
            highest_priority = p;
+         }
       }
     }
 
     //context switch
     if(highest_priority != NULL)
     {
+      printk(KERN_INFO "Context switch!\n");
       highest_priority->task_state = TASK_STATE_RUNNING;
       
       wake_up_process(highest_priority->linux_task);
@@ -650,10 +660,10 @@ int perform_scheduling(void *data)
     current_task = highest_priority;
     
     mutex_unlock(&mp2_mutex);
-    printk(KERN_INFO "Dispatch thread going sleep...good night!! ");
     //put scheduler to sleep until woken up again  
-    set_task_state(dispatch_kthread, TASK_INTERRUPTIBLE);
-    
+    set_current_state(TASK_INTERRUPTIBLE);
+    //schedule();
+    //set_current_state(TASK_RUNNING);
   }
 
   return 0;
