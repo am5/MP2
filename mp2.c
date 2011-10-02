@@ -280,6 +280,7 @@ int register_task(long pid, long period, long processingTime)
   p->period = period;
   p->ptime = processingTime;
   p->task_state = TASK_STATE_SLEEPING;
+  p->first_yield_call = 0;
   timer_init(&(p->wakeup_timer), up_handler);
 
   // Insert the task into the task list 
@@ -370,12 +371,6 @@ int yield_task(long pid)
 {
   struct list_head *pos, *tmp;
   struct mp2_task_struct *p = NULL;
-  // indicate that it's the first time we're calling yield
-  if(first_yield_call == 0)
-  {
-	first_yield_call = 1;
-	previous_time = jiffies;
-  }
 
   // loop through the list until we find our PID
   list_for_each_safe(pos, tmp, &mp2_task_list)
@@ -386,13 +381,21 @@ int yield_task(long pid)
       printk(KERN_INFO "yield_task: Found node with PID %ld\n", p->pid);
     } 
   }
+ 
+  // indicate that it's the first time we're calling yield
+  if(p->first_yield_call == 0)
+  {
+	p->first_yield_call = 1;
+	p->previous_time = jiffies;
+  }
+
 
   //if next period has not started yet
   //  set state to sleeping and wake up timer
-  if(jiffies < MS_TO_JIFF(p->period) + previous_time)
+  if(jiffies < MS_TO_JIFF(p->period) + p->previous_time)
   {
     //adjust new previous
-    previous_time = previous_time + MS_TO_JIFF(p->period);
+    p->previous_time = p->previous_time + MS_TO_JIFF(p->period);
 
     // change task state to sleeping
     p->task_state = TASK_STATE_SLEEPING;
