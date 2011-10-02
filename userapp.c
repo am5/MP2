@@ -276,10 +276,10 @@ bool try_unregister(pid_t pid){
 int main(int argc, char* argv[])
 {
   pid_t mypid;
-//  int j,k;
+  int j;
 
-  long period = 3000;		// in milliseconds
-  long processTime = 1000;	// in milliseconds
+  long period = 200;		// in milliseconds
+  long processTime = 10;	// in milliseconds
   
   // get our PID so that we can register
   mypid= syscall(__NR_gettid);
@@ -289,17 +289,21 @@ int main(int argc, char* argv[])
     printf("Unable to register this PID %ld\n", mypid);
     return -1;
   }
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  printf("Current time %d\n", tv.tv_sec);
   // writes yield to proc/mp2/status file for this pid
   try_yielding(mypid);
-  sleep(10);	// just for testing, remove once complete and uncomment below
-/*
-  for (k=0;k<10000; k++)
-  for(j=0; j<30; j++)
+  gettimeofday(&tv, NULL);
+  printf("Current time %d\n", tv.tv_sec);
+
+  for(j=100; j<1000; j+=100)
   {
 	printf("Factorial %u: %llu\n",j, factorial(j));
         try_yielding(mypid);
+  	gettimeofday(&tv, NULL);
+        printf("Current time %d\n", tv.tv_sec);
   }
-*/
   // unregister from the module
   if(try_unregister(mypid)){
     printf("We successfully unregistered from the module!\n");
