@@ -629,19 +629,16 @@ int perform_scheduling(void *data){
           sparam.sched_priority = 0;
           sched_setscheduler(current_task->linux_task, SCHED_NORMAL, &sparam);
         }
-
       }else{
         current_task = highest_priority;
         current_task->task_state = TASK_RUNNING;
         highest_prio_sparam.sched_priority = MAX_USER_RT_PRIO-1;
         sched_setscheduler(current_task->linux_task, SCHED_FIFO, &highest_prio_sparam);
       }
-
-    }else{
-      //put scheduler to sleep until woken up again
-      set_current_state(TASK_INTERRUPTIBLE);
-      schedule();
     }
+    //put scheduler to sleep until woken up again
+    set_current_state(TASK_INTERRUPTIBLE);
+    schedule();
   }
 
 }
