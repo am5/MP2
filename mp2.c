@@ -772,7 +772,7 @@ int __init my_module_init(void)
   dispatch_kthread = kthread_create(perform_scheduling, NULL, "kmp2");  
 
   //set scheduling thread to higher priority than task so that this cannot be preempted.
-  sparam.sched_priority = MAX_RT_PRIO-1;
+  sparam.sched_priority = MAX_RT_PRIO;
   sched_setscheduler(dispatch_kthread, SCHED_FIFO, &sparam);
 
   //THE EQUIVALENT TO PRINTF IN KERNEL SPACE
