@@ -15,36 +15,6 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 //
-// FUNCTION NAME:  timer_init
-//
-// PROCESSING:
-//
-//    This is a helper function to initialize a timer with a single call. 
-//
-// INPUTS:
-//
-//    timer 	- the timer list
-//    function  - function pointer 
-//
-// RETURN:
-//
-//   None
-//
-// IMPLEMENTATION NOTES
-//
-//   None 
-//
-///////////////////////////////////////////////////////////////////////////////
-inline void timer_init(struct timer_list  *timer, void (*function)(unsigned long), struct mp2_task_struct * data)
-{
-  BUG_ON(timer==NULL || function==NULL);
-  init_timer(timer);
-  timer->function=function;
-//  timer->data=(struct mp2_task_struct*) data;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-//
 // FUNCTION NAME:  set_timer
 //
 // PROCESSING:
@@ -292,7 +262,6 @@ int register_task(long pid, long period, long processingTime)
   p->ptime = processingTime;
   p->task_state = TASK_STATE_SLEEPING;
   p->first_yield_call = 0;
-  //timer_init(&(p->wakeup_timer), up_handler, p);
   init_timer(&(p->wakeup_timer));
   (p->wakeup_timer).function=up_handler;
   (p->wakeup_timer).data=(unsigned long) p;
@@ -336,6 +305,7 @@ int unregister_task(long pid)
   struct mp2_task_struct *p;
   int found = -1;  // init to not found
 
+
   // loop through the list until we find our PID, then remove it
   list_for_each_safe(pos, tmp, &mp2_task_list)
   {
@@ -354,6 +324,7 @@ int unregister_task(long pid)
       found=0;
     } // no, keep searching
   }
+
   // return the result status
   return found;
 }
@@ -468,7 +439,7 @@ int yield_task(long pid)
 int proc_registration_read(char *page, char **start, off_t off, int count, int* eof, void* data)
 {
   off_t i=0;
-  struct list_head *pos;
+  struct list_head *pos, *tmp;
   struct mp2_task_struct *p;
 
   printk(KERN_INFO "Reading from proc file\n");
@@ -476,7 +447,7 @@ int proc_registration_read(char *page, char **start, off_t off, int count, int* 
 
   mutex_lock(&mp2_mutex);
   // loop through the task list and print the PID, period and processing time (space delimited)
-  list_for_each(pos, &mp2_task_list)
+  list_for_each_safe(pos, tmp, &mp2_task_list)
   {
     p = list_entry(pos, struct mp2_task_struct, task_node);
     i += sprintf(page+off+i, "%ld %ld %ld\n", p->pid, p->period, p->ptime);
@@ -591,6 +562,28 @@ void _destroy_task_list(void)
       kfree(p);
     }
 }
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME: perform_scheduling
+//
+// PROCESSING:
+//
+//    This function starts the dispatcher thread and performs any scheduling
+//    updates 
+//
+// INPUTS:
+//
+//    data - pointer to private data 
+//
+// RETURN:
+//
+//   int -  
+//
+// IMPLEMENTATION NOTES
+//
+//   
+//
+///////////////////////////////////////////////////////////////////////////////
 int perform_scheduling(void *data){
   
   struct mp2_task_struct *highest_priority = NULL;
@@ -627,8 +620,8 @@ int perform_scheduling(void *data){
     mutex_unlock(&mp2_mutex);
 
     if(highest_priority != NULL){
-      if(current_task != NULL){
-        if(current_task->pid != highest_priority->pid){
+      if(mp2_current_task != NULL){
+        if(mp2_current_task->pid != highest_priority->pid){
           printk(KERN_INFO "New high priority process PID=%ld, context switch\n", highest_priority->pid);
           // set higher priority process
           highest_priority->task_state = TASK_STATE_RUNNING;
@@ -638,22 +631,24 @@ int perform_scheduling(void *data){
 
           // set lower priority process
           //set to READY only if it was running
-          if(current_task->task_state == TASK_STATE_RUNNING)
-            current_task->task_state = TASK_STATE_READY;
+          if(mp2_current_task->task_state == TASK_STATE_RUNNING)
+            mp2_current_task->task_state = TASK_STATE_READY;
 
           struct sched_param sparam;
           sparam.sched_priority = 0;
-          sched_setscheduler(current_task->linux_task, SCHED_NORMAL, &sparam);
+          sched_setscheduler(mp2_current_task->linux_task, SCHED_NORMAL, &sparam);
         }else{
-          printk(KERN_INFO "current_task (PID=%ld, state=%d) is EQUAL to highest_priority (PID=%ld, state=%d)\n", current_task->pid, current_task->task_state, highest_priority->pid, highest_priority->task_state);
+          printk(KERN_INFO "mp2_current_task (PID=%ld, state=%d) is EQUAL to highest_priority (PID=%ld, state=%d)\n", mp2_current_task->pid, mp2_current_task->task_state, highest_priority->pid, highest_priority->task_state);
+          mp2_current_task->task_state = TASK_STATE_RUNNING;
+          wake_up_process(mp2_current_task->linux_task);
         }
       }else{
         printk(KERN_INFO "Current task is NULL, context switch\n");
-        current_task = highest_priority;
-        current_task->task_state = TASK_STATE_RUNNING;
-        wake_up_process(current_task->linux_task);
+        mp2_current_task = highest_priority;
+        mp2_current_task->task_state = TASK_STATE_RUNNING;
+        wake_up_process(mp2_current_task->linux_task);
         highest_prio_sparam.sched_priority = MAX_USER_RT_PRIO-1;
-        sched_setscheduler(current_task->linux_task, SCHED_FIFO, &highest_prio_sparam);
+        sched_setscheduler(mp2_current_task->linux_task, SCHED_FIFO, &highest_prio_sparam);
       }
     }else{
       printk(KERN_INFO "Highest Priority is NULL\n");
@@ -665,97 +660,7 @@ int perform_scheduling(void *data){
   return 0;
 
 }
-///////////////////////////////////////////////////////////////////////////////
-//
-// FUNCTION NAME: perform_scheduling
-//
-// PROCESSING:
-//
-//    This function starts the dispatcher thread and performs any scheduling
-//    updates 
-//
-// INPUTS:
-//
-//    data - pointer to private data 
-//
-// RETURN:
-//
-//   int -  
-//
-// IMPLEMENTATION NOTES
-//
-//   
-//
-///////////////////////////////////////////////////////////////////////////////
-int perform_scheduling2(void *data)
-{
-  struct mp2_task_struct *highest_priority = NULL;
-  while(1)
-  {
-    printk("Running scheduler function\n");
-    mutex_lock(&mp2_mutex);
-    if(stop_dispatch_thread==1)
-    {
-      mutex_unlock(&mp2_mutex);
-      break;
-    }
-    
-    highest_priority = NULL;
-    struct list_head *pos;
-    struct mp2_task_struct *p;
-    struct sched_param highest_prio_sparam;
 
-    //find highest priority
-    list_for_each(pos, &mp2_task_list)
-    {
-      p = list_entry(pos, struct mp2_task_struct, task_node);
-      if(p->task_state == TASK_STATE_READY)
-      {
-         // initialize the first task as high priority
-         if(highest_priority == NULL)
-	   highest_priority = p;
-         printk("Current PID=%ld, period=%ld\n", p->pid, p->period);
-         if(p->period < highest_priority->period){
-           printk("PID %ld period (%ld) is less than period of highest priority (PID=%ld, period=%ld)\n", p->pid, p->period, highest_priority->pid, highest_priority->period);
-           highest_priority = p;
-         }
-      }
-    }
-    mutex_unlock(&mp2_mutex);
-
-    //context switch
-    if(highest_priority != NULL)
-    {
-      printk(KERN_INFO "Context switch!\n");
-      highest_priority->task_state = TASK_STATE_RUNNING;
-      
-      wake_up_process(highest_priority->linux_task);
-      highest_prio_sparam.sched_priority = MAX_USER_RT_PRIO-2;
-      sched_setscheduler(highest_priority->linux_task, SCHED_FIFO, &highest_prio_sparam);
-    }
-  
-    if(current_task != NULL && highest_priority != NULL && current_task->pid != highest_priority->pid)
-    {  
-      struct sched_param sparam;
-      sparam.sched_priority = 0;
-      sched_setscheduler(current_task->linux_task, SCHED_NORMAL, &sparam);
-         
-      //set to READY only if it was running
-      if(current_task->task_state == TASK_STATE_RUNNING)
-        current_task->task_state = TASK_STATE_READY;
-    }
-
-    //set new running task(if any) to current now
-    current_task = highest_priority;
-    printk("Putting scheduler function to sleep...\n");
-    //put scheduler to sleep until woken up again  
-    set_current_state(TASK_INTERRUPTIBLE);
-    schedule();
-    //set_current_state(TASK_STATE_RUNNING);
-  }
-
-  return 0;
-}
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -775,8 +680,6 @@ int perform_scheduling2(void *data)
 //
 // IMPLEMENTATION NOTES
 //
-//   The my_module_init function calls the timer_init function with the 
-//   timer_list structure and a function pointer to the up_handler function.
 //   It initializes the proc_file entry variables and creates the dispatcher
 //   thread.
 //   

@@ -124,30 +124,18 @@ bool is_registered(pid_t pid){
 //
 // IMPLEMENTATION NOTES
 //
-//   The try_register function uses a file handle to the /proc/mp2/status 
-//   and then writes a formatted register message to the file. After the call 
+//   The try_register function uses a system call to update the /proc/mp2/status 
+//   by writing a formatted register message to the file via echo. After the call 
 //   to the kernel, the function verifies that the PID appears in the proc file 
 //   by calling is_registered. 
 //
 ///////////////////////////////////////////////////////////////////////////////
 bool try_register(pid_t pid, long period, long processTime){
-  FILE *mp2_proc;	// for /proc/mp2/status file handler
-
-  mp2_proc = fopen("/proc/mp2/status", "w");
-  if(mp2_proc == NULL){
-    // an error occurred when trying to read the file
-    printf("Unable to open /proc/mp2/status for writing\n");
-    return false;
-  }
-
   // create the string to write to the proc file
   char action[128];
-  sprintf(action, "R %d %ld %ld", pid, period, processTime);
-  fputs(action, mp2_proc);
+  sprintf(action, "echo \"R %d %ld %ld\" > /proc/mp2/status", pid, period, processTime);
+  system(action);
   
-  // close the file
-  fclose(mp2_proc);
-
   // let's check if we are a registered process
   return is_registered(pid);
 }
@@ -173,28 +161,15 @@ bool try_register(pid_t pid, long period, long processTime){
 //
 // IMPLEMENTATION NOTES
 //
-//   The try_yielding function uses a file handle to the /proc/mp2/status 
-//   and then writes a formatted yield message to the file. It closes the 
-//   file after it has finished writing to it. 
+//   The try_yielding function uses a system call to update /proc/mp2/status 
+//   by writing a formatted yield message to the file via echo. 
 //
 ///////////////////////////////////////////////////////////////////////////////
 bool try_yielding(pid_t pid){
-  FILE *mp2_proc;	// for /proc/mp2/status file handler
-
-  mp2_proc = fopen("/proc/mp2/status", "w");
-  if(mp2_proc == NULL){
-    // an error occurred when trying to read the file
-    printf("Unable to open /proc/mp2/status for writing\n");
-    return false;
-  }
-
   // create the string to write to the proc file
   char action[128];
-  sprintf(action, "Y %d", pid);
-  fputs(action, mp2_proc);
-  
-  // close the file
-  fclose(mp2_proc);
+  sprintf(action, "echo \"Y %d\" > /proc/mp2/status", pid);
+  system(action);
 
   return true;
 }
@@ -278,7 +253,7 @@ int main(int argc, char* argv[])
   pid_t mypid;
   int j;
 
-  long period = 20000;		// in milliseconds
+  long period = 250;		// in milliseconds
   long processTime = 10;	// in milliseconds
   
   // get our PID so that we can register
