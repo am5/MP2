@@ -604,6 +604,7 @@ int perform_scheduling(void *data){
       mutex_unlock(&mp2_mutex);
       break;
     }
+    highest_priority=NULL;
 
     //find highest priority
     list_for_each(pos, &mp2_task_list)
