@@ -626,6 +626,8 @@ int perform_scheduling(void *data){
     if(highest_priority != NULL){
       if(current_task != NULL){
         if(current_task->pid != highest_priority->pid){
+          printk(KERN_INFO "New high priority process PID=%ld, context switch\n", highest_priority->pid);
+          // set higher priority process
           highest_priority->task_state = TASK_RUNNING;
           highest_prio_sparam.sched_priority = MAX_USER_RT_PRIO-1;
           sched_setscheduler(highest_priority->linux_task, SCHED_FIFO, &highest_prio_sparam);
@@ -640,6 +642,7 @@ int perform_scheduling(void *data){
           sched_setscheduler(current_task->linux_task, SCHED_NORMAL, &sparam);
         }
       }else{
+        printk(KERN_INFO "Current task is NULL, context switch\n");
         current_task = highest_priority;
         current_task->task_state = TASK_RUNNING;
         highest_prio_sparam.sched_priority = MAX_USER_RT_PRIO-1;
