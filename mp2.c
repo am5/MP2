@@ -629,7 +629,7 @@ int perform_scheduling(void *data){
         if(current_task->pid != highest_priority->pid){
           printk(KERN_INFO "New high priority process PID=%ld, context switch\n", highest_priority->pid);
           // set higher priority process
-          highest_priority->task_state = TASK_RUNNING;
+          highest_priority->task_state = TASK_STATE_RUNNING;
           wake_up_process(highest_priority->linux_task);
           highest_prio_sparam.sched_priority = MAX_USER_RT_PRIO-1;
           sched_setscheduler(highest_priority->linux_task, SCHED_FIFO, &highest_prio_sparam);
@@ -646,7 +646,7 @@ int perform_scheduling(void *data){
       }else{
         printk(KERN_INFO "Current task is NULL, context switch\n");
         current_task = highest_priority;
-        current_task->task_state = TASK_RUNNING;
+        current_task->task_state = TASK_STATE_RUNNING;
         wake_up_process(current_task->linux_task);
         highest_prio_sparam.sched_priority = MAX_USER_RT_PRIO-1;
         sched_setscheduler(current_task->linux_task, SCHED_FIFO, &highest_prio_sparam);
@@ -745,7 +745,7 @@ int perform_scheduling2(void *data)
     //put scheduler to sleep until woken up again  
     set_current_state(TASK_INTERRUPTIBLE);
     schedule();
-    //set_current_state(TASK_RUNNING);
+    //set_current_state(TASK_STATE_RUNNING);
   }
 
   return 0;
