@@ -642,6 +642,8 @@ int perform_scheduling(void *data){
           struct sched_param sparam;
           sparam.sched_priority = 0;
           sched_setscheduler(current_task->linux_task, SCHED_NORMAL, &sparam);
+        }else{
+          printk(KERN_INFO "current_task (PID=%ld, state=%d) is EQUAL to highest_priority (PID=%ld, state=%d)\n", current_task->pid, current_task->task_state, highest_priority->pid, highest_priority->task_state);
         }
       }else{
         printk(KERN_INFO "Current task is NULL, context switch\n");
@@ -651,6 +653,8 @@ int perform_scheduling(void *data){
         highest_prio_sparam.sched_priority = MAX_USER_RT_PRIO-1;
         sched_setscheduler(current_task->linux_task, SCHED_FIFO, &highest_prio_sparam);
       }
+    }else{
+      printk(KERN_INFO "Highest Priority is NULL\n");
     }
     //put scheduler to sleep until woken up again
     set_current_state(TASK_INTERRUPTIBLE);
