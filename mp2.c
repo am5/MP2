@@ -630,7 +630,7 @@ int perform_scheduling(void *data){
           printk(KERN_INFO "New high priority process PID=%ld, context switch\n", highest_priority->pid);
           // set higher priority process
           highest_priority->task_state = TASK_RUNNING;
-          wake_up_process(current_task->linux_task);
+          wake_up_process(highest_priority->linux_task);
           highest_prio_sparam.sched_priority = MAX_USER_RT_PRIO-1;
           sched_setscheduler(highest_priority->linux_task, SCHED_FIFO, &highest_prio_sparam);
 
