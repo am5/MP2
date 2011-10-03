@@ -597,6 +597,14 @@ int perform_scheduling(void *data){
   struct mp2_task_struct *p;
 
   while(1){
+
+    mutex_lock(&mp2_mutex);
+    if(stop_dispatch_thread==1)
+    {
+      mutex_unlock(&mp2_mutex);
+      break;
+    }
+
     //find highest priority
     list_for_each(pos, &mp2_task_list)
     {
@@ -613,6 +621,8 @@ int perform_scheduling(void *data){
          }
       }
     }
+    mutex_unlock(&mp2_mutex);
+
     if(highest_priority != NULL){
       if(current_task != NULL){
         if(current_task->pid != highest_priority->pid){
@@ -640,6 +650,7 @@ int perform_scheduling(void *data){
     set_current_state(TASK_INTERRUPTIBLE);
     schedule();
   }
+  return 0;
 
 }
 ///////////////////////////////////////////////////////////////////////////////
