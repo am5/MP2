@@ -103,10 +103,10 @@ void up_handler(unsigned long ptr)
   struct mp2_task_struct *mytask;
   mytask=(struct mp2_task_struct *) ptr;
   if(mytask != NULL){
-	printk("Setting mytask to state ready\n");
+	printk(KERN_INFO "Setting mytask to state ready\n");
   	mytask->task_state = TASK_STATE_READY;
         set_task_state(mytask->linux_task, TASK_INTERRUPTIBLE);
-	printk("Task state is %d\n", mytask->task_state);
+	printk(KERN_INFO "Task state is %d\n", mytask->task_state);
   }
 
   printk(KERN_INFO "Calling our dispatch threadPID %ld\n", mytask->pid);
@@ -303,7 +303,6 @@ int register_task(long pid, long period, long processingTime)
   _insert_task(p);
   mutex_unlock(&mp2_mutex);
   printk(KERN_INFO "Task added to list\n");
-
   return 0;
 }
 
@@ -590,7 +589,61 @@ void _destroy_task_list(void)
       kfree(p);
     }
 }
+int perform_scheduling(void *data){
+  
+  struct mp2_task_struct *highest_priority = NULL;
+  struct sched_param highest_prio_sparam;
+  struct list_head *pos;
+  struct mp2_task_struct *p;
 
+  while(1){
+    //find highest priority
+    list_for_each(pos, &mp2_task_list)
+    {
+      p = list_entry(pos, struct mp2_task_struct, task_node);
+      if(p->task_state == TASK_STATE_READY)
+      {
+         // initialize the first task as high priority
+         if(highest_priority == NULL)
+           highest_priority = p;
+         printk("Current PID=%ld, period=%ld\n", p->pid, p->period);
+         if(p->period < highest_priority->period){
+           printk("PID %ld period (%ld) is less than period of highest priority (PID=%ld, period=%ld)\n", p->pid, p->period, highest_priority->pid, highest_priority->period);
+           highest_priority = p;
+         }
+      }
+    }
+    if(highest_priority != NULL){
+      if(current_task != NULL){
+        if(current_task->pid != highest_priority->pid){
+          highest_priority->task_state = TASK_RUNNING;
+          highest_prio_sparam.sched_priority = MAX_USER_RT_PRIO-1;
+          sched_setscheduler(highest_priority->linux_task, SCHED_FIFO, &highest_prio_sparam);
+
+          // set lower priority process
+          //set to READY only if it was running
+          if(current_task->task_state == TASK_STATE_RUNNING)
+            current_task->task_state = TASK_STATE_READY;
+          }
+          struct sched_param sparam;
+          sparam.sched_priority = 0;
+          sched_setscheduler(current_task->linux_task, SCHED_NORMAL, &sparam);
+
+      }else{
+        current_task = highest_priority;
+        current_task->task_state = TASK_RUNNING;
+        highest_prio_sparam.sched_priority = MAX_USER_RT_PRIO-1;
+        sched_setscheduler(current_task->linux_task, SCHED_FIFO, &highest_prio_sparam);
+      }
+
+    }else{
+      //put scheduler to sleep until woken up again
+      set_current_state(TASK_INTERRUPTIBLE);
+      schedule();
+    }
+  }
+
+}
 ///////////////////////////////////////////////////////////////////////////////
 //
 // FUNCTION NAME: perform_scheduling
@@ -613,7 +666,7 @@ void _destroy_task_list(void)
 //   
 //
 ///////////////////////////////////////////////////////////////////////////////
-int perform_scheduling(void *data)
+int perform_scheduling2(void *data)
 {
   struct mp2_task_struct *highest_priority = NULL;
   while(1)
@@ -656,7 +709,7 @@ int perform_scheduling(void *data)
       highest_priority->task_state = TASK_STATE_RUNNING;
       
       wake_up_process(highest_priority->linux_task);
-      highest_prio_sparam.sched_priority = MAX_USER_RT_PRIO-1;
+      highest_prio_sparam.sched_priority = MAX_USER_RT_PRIO-2;
       sched_setscheduler(highest_priority->linux_task, SCHED_FIFO, &highest_prio_sparam);
     }
   
@@ -719,7 +772,7 @@ int __init my_module_init(void)
   dispatch_kthread = kthread_create(perform_scheduling, NULL, "kmp2");  
 
   //set scheduling thread to higher priority than task so that this cannot be preempted.
-  sparam.sched_priority = MAX_RT_PRIO;
+  sparam.sched_priority = MAX_RT_PRIO-1;
   sched_setscheduler(dispatch_kthread, SCHED_FIFO, &sparam);
 
   //THE EQUIVALENT TO PRINTF IN KERNEL SPACE
