@@ -105,6 +105,7 @@ void up_handler(unsigned long ptr)
   if(mytask != NULL){
 	printk("Setting mytask to state ready\n");
   	mytask->task_state = TASK_STATE_READY;
+        set_task_state(mytask->linux_task, TASK_INTERRUPTIBLE);
 	printk("Task state is %d\n", mytask->task_state);
   }
 
@@ -614,13 +615,10 @@ void _destroy_task_list(void)
 ///////////////////////////////////////////////////////////////////////////////
 int perform_scheduling(void *data)
 {
-  struct list_head *pos;
-  struct mp2_task_struct *p;
   struct mp2_task_struct *highest_priority = NULL;
-  struct sched_param highest_prio_sparam;
-
   while(1)
   {
+    printk("Running scheduler function\n");
     mutex_lock(&mp2_mutex);
     if(stop_dispatch_thread==1)
     {
@@ -629,6 +627,9 @@ int perform_scheduling(void *data)
     }
     
     highest_priority = NULL;
+    struct list_head *pos;
+    struct mp2_task_struct *p;
+    struct sched_param highest_prio_sparam;
 
     //find highest priority
     list_for_each(pos, &mp2_task_list)
@@ -643,6 +644,7 @@ int perform_scheduling(void *data)
          }
       }
     }
+    mutex_unlock(&mp2_mutex);
 
     //context switch
     if(highest_priority != NULL)
@@ -668,11 +670,10 @@ int perform_scheduling(void *data)
 
     //set new running task(if any) to current now
     current_task = highest_priority;
-    
-    mutex_unlock(&mp2_mutex);
+    printk("Putting scheduler function to sleep...\n");
     //put scheduler to sleep until woken up again  
     set_current_state(TASK_INTERRUPTIBLE);
-    //schedule();
+    schedule();
     //set_current_state(TASK_RUNNING);
   }
 
