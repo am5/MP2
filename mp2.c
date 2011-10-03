@@ -635,8 +635,11 @@ int perform_scheduling(void *data)
     list_for_each(pos, &mp2_task_list)
     {
       p = list_entry(pos, struct mp2_task_struct, task_node);
-      if(p->task_state == TASK_STATE_READY && highest_priority != NULL)
+      if(p->task_state == TASK_STATE_READY)
       {
+         // initialize the first task as high priority
+         if(highest_priority == NULL)
+	   highest_priority = p;
          printk("Current PID=%ld, period=%ld\n", p->pid, p->period);
          if(p->period < highest_priority->period){
            printk("PID %ld period (%ld) is less than period of highest priority (PID=%ld, period=%ld)\n", p->pid, p->period, highest_priority->pid, highest_priority->period);

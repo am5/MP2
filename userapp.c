@@ -279,7 +279,7 @@ int main(int argc, char* argv[])
   int j;
 
   long period = 20000;		// in milliseconds
-  long processTime = 1000;	// in milliseconds
+  long processTime = 10;	// in milliseconds
   
   // get our PID so that we can register
   mypid= syscall(__NR_gettid);
