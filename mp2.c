@@ -660,7 +660,7 @@ int perform_scheduling(void *data)
       sched_setscheduler(highest_priority->linux_task, SCHED_FIFO, &highest_prio_sparam);
     }
   
-    if(current_task != NULL && current_task->pid != highest_priority->pid)
+    if(current_task != NULL && highest_priority != NULL && current_task->pid != highest_priority->pid)
     {  
       struct sched_param sparam;
       sparam.sched_priority = 0;
