@@ -624,10 +624,11 @@ int perform_scheduling(void *data){
           //set to READY only if it was running
           if(current_task->task_state == TASK_STATE_RUNNING)
             current_task->task_state = TASK_STATE_READY;
-          }
+
           struct sched_param sparam;
           sparam.sched_priority = 0;
           sched_setscheduler(current_task->linux_task, SCHED_NORMAL, &sparam);
+        }
 
       }else{
         current_task = highest_priority;
