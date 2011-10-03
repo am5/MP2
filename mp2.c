@@ -40,7 +40,7 @@ inline void timer_init(struct timer_list  *timer, void (*function)(unsigned long
   BUG_ON(timer==NULL || function==NULL);
   init_timer(timer);
   timer->function=function;
-  timer->data=(struct mp2_task_struct*) data;
+//  timer->data=(struct mp2_task_struct*) data;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -100,10 +100,15 @@ inline void set_timer(struct timer_list* tlist, long release_time)
 void up_handler(unsigned long ptr)
 {
   // change the state of the current task to ready since our timer expired
-  if(&ptr != NULL)
-  	((struct mp2_task_struct*)ptr)->task_state = TASK_STATE_READY;
+  struct mp2_task_struct *mytask;
+  mytask=(struct mp2_task_struct *) ptr;
+  if(mytask != NULL){
+	printk("Setting mytask to state ready\n");
+  	mytask->task_state = TASK_STATE_READY;
+	printk("Task state is %d\n", mytask->task_state);
+  }
 
-  printk(KERN_INFO "Calling our dispatch threadPID %ld\n", ((struct mp2_task_struct*)ptr)->pid);
+  printk(KERN_INFO "Calling our dispatch threadPID %ld\n", mytask->pid);
   //SCHEDULE THE THREAD TO RUN (WAKE UP THE THREAD)
   wake_up_process(dispatch_kthread);
 }
@@ -286,7 +291,11 @@ int register_task(long pid, long period, long processingTime)
   p->ptime = processingTime;
   p->task_state = TASK_STATE_SLEEPING;
   p->first_yield_call = 0;
-  timer_init(&(p->wakeup_timer), up_handler, p);
+  //timer_init(&(p->wakeup_timer), up_handler, p);
+  init_timer(&(p->wakeup_timer));
+  (p->wakeup_timer).function=up_handler;
+  (p->wakeup_timer).data=(unsigned long) p;
+  
 
   // Insert the task into the task list 
   mutex_lock(&mp2_mutex);
@@ -612,7 +621,6 @@ int perform_scheduling(void *data)
 
   while(1)
   {
-    highest_priority = NULL;
     mutex_lock(&mp2_mutex);
     if(stop_dispatch_thread==1)
     {
@@ -620,7 +628,8 @@ int perform_scheduling(void *data)
       break;
     }
     
-  
+    highest_priority = NULL;
+
     //find highest priority
     list_for_each(pos, &mp2_task_list)
     {
