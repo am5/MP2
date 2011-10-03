@@ -343,10 +343,10 @@ int unregister_task(long pid)
     // is this is our task?
     if(p->pid == pid){
       printk(KERN_INFO "Found node with PID %ld\n", p->pid);
-      // remove the timer
-      del_timer_sync(&(p->wakeup_timer));
       // yes, we need to remove this entry
       mutex_lock(&mp2_mutex);
+      // remove the timer
+      del_timer_sync(&(p->wakeup_timer));
       list_del(pos);
       kfree(p);
       mutex_unlock(&mp2_mutex);
