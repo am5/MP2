@@ -1,0 +1,65 @@
+// MP2 Periodic Application Pseudo-code
+
+
+//  ------------------------------
+//  User Space Period Application:
+//  Factorial Calculation
+//  ------------------------------
+
+#define FALSE 0
+#define TRUE 1
+
+int main(int argc, char* argv[])
+{
+  // any command line parameters from the user:
+  int i, pid;
+  int num = argv[0]; 
+  int j = 1;
+  int registered = FALSE;
+ 
+  // register with admission control
+  admission_control(period, processing_time) // period/processing_time are in milliseconds
+
+  // read proc file system to see if pid is listed
+  pid = getpid();
+  
+  tasks = list_processes();
+  for(i =0; i < len(tasks); i++)
+  {
+    if(tasks[i].pid == pid)
+    {
+      registered = TRUE; 
+    }
+  }
+
+  if(registered)
+  {
+    // signal scheduler that is is ready
+    // send YIELD(pid) message through proc file system 
+    // initiate Real-Time loop; t0 = getttimeofday() for test.c
+    // begin execution of periodic jobs 
+       while(numJobs > 0 || exitJobs)
+       {
+ 	 do_job();
+  	 // print wake up time of the function
+	 //wakeup_time = t0 - gettimeofday()
+         printf("The wakeup time of the process is: %d\n", wakeup_time);
+
+ 	 // calculate factorial of num
+  	 for(i = 1; i <= num; i++)
+  	 {
+    	   j = j * i;
+  	 }
+
+   	 YIELD(PID); // proc filesystem
+       }
+    // De-register
+    unregister(PID);
+  }
+  else
+  {
+    exit(1);
+  }
+  
+  return 0;
+}
