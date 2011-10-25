@@ -1,17 +1,18 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// MP2:		Rate Monotonic CPU Scheduler
-// Name:        mp2.c
-// Date: 	10/1/2011
+// MP2:		Virtual Memory Page Fault Measurement 
+// Name:        mp3.c
+// Date: 	11/5/2011
 // Group:	20: Intisar Malhi, Alexandra Mirtcheva, and Roberto Moreno
-// Description: This source implements a CPU scheduler for the Liu and Layland
-//		Periodic Task Model, based the on the Rate-Monotonic Scheduler.
+// Description: This source implements a profiler tool kernel module for 
+//				virtual memory
+//				page fault measurement. 
 //              Implemented using a Linux Kernel Module and the Proc Filesystem.
 //		Compiled for Fedora Core 15 64-bits, Linux Kernel 2.60.40. 
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "mp2.h"
+#include "mp3.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -682,25 +683,31 @@ int perform_scheduling(void *data){
 //
 //   It initializes the proc_file entry variables and creates the dispatcher
 //   thread.
+//	 The profiler memory buffer is also allocated here to store work process
+//	 information. 
 //   
 ///////////////////////////////////////////////////////////////////////////////
 int __init my_module_init(void)
 {
   struct sched_param sparam;
 
-  mp2_proc_dir=proc_mkdir("mp2",NULL);
-  register_task_file=create_proc_entry("status", 0666, mp2_proc_dir);
+  mp3_proc_dir=proc_mkdir("mp3",NULL);
+  register_task_file=create_proc_entry("status", 0666, mp3_proc_dir);
   register_task_file->read_proc= proc_registration_read;
   register_task_file->write_proc=proc_registration_write;
 
-  dispatch_kthread = kthread_create(perform_scheduling, NULL, "kmp2");  
+  //dispatch_kthread = kthread_create(perform_scheduling, NULL, "kmp2");  
 
   //set scheduling thread to higher priority than task so that this cannot be preempted.
-  sparam.sched_priority = MAX_RT_PRIO;
-  sched_setscheduler(dispatch_kthread, SCHED_FIFO, &sparam);
+  //sparam.sched_priority = MAX_RT_PRIO;
+  //sched_setscheduler(dispatch_kthread, SCHED_FIFO, &sparam);
+
+  // Allocate profiler memory buffer
+  addr = vmalloc(MEM_SIZE);
+  
 
   //THE EQUIVALENT TO PRINTF IN KERNEL SPACE
-  printk(KERN_INFO "MP2 Module LOADED\n");
+  printk(KERN_INFO "MP3 Module LOADED\n");
   return 0;   
 }
 
@@ -728,14 +735,15 @@ int __init my_module_init(void)
 ///////////////////////////////////////////////////////////////////////////////
 void __exit my_module_exit(void)
 {
-  remove_proc_entry("status", mp2_proc_dir);
-  remove_proc_entry("mp2", NULL);
+  remove_proc_entry("status", mp3_proc_dir);
+  remove_proc_entry("mp3", NULL);
   
   stop_dispatch_thread=1;
   wake_up_process(dispatch_kthread);
   
   _destroy_task_list();
-  printk(KERN_INFO "MP2 Module UNLOADED\n");
+  vfree(p_mem);   // deallocate profile buffer 
+  printk(KERN_INFO "MP3 Module UNLOADED\n");
 }
 
 // WE REGISTER OUR INIT AND EXIT FUNCTIONS HERE SO INSMOD CAN RUN THEM
