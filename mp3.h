@@ -31,7 +31,6 @@
 //#define TASK_STATE_READY     0
 //#define TASK_STATE_RUNNING   1
 //#define TASK_STATE_SLEEPING  2
-#define MEM_SIZE 512
 
 // PROCESS CONTROL BLOCK 
 struct mp3_task_struct
@@ -56,8 +55,8 @@ struct task_struct* dispatch_kthread;
 int stop_dispatch_thread=0;
 
 // PROFILE BUFFER
-int p_mem;  // pointer to address location of buffer
-int* addr; 
+int *p_addr; 		// pointer to memory area 
+unsigned long mem_size; // memory area size
 
 LIST_HEAD(mp3_task_list);
 static DEFINE_MUTEX(mp3_mutex);

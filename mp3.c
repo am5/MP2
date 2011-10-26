@@ -13,6 +13,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "mp3.h"
+mem_size = 512;
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -702,8 +703,8 @@ int __init my_module_init(void)
   //sparam.sched_priority = MAX_RT_PRIO;
   //sched_setscheduler(dispatch_kthread, SCHED_FIFO, &sparam);
 
-  // Allocate profiler memory buffer
-  addr = vmalloc(MEM_SIZE);
+  // Allocate memory buffer
+  p_addr = vmalloc(mem_size);
   
 
   //THE EQUIVALENT TO PRINTF IN KERNEL SPACE
