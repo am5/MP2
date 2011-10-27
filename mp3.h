@@ -37,13 +37,10 @@ struct mp3_task_struct
 {
   long pid;
   struct task_struct* linux_task;	// the real PCB
-  struct timer_list wakeup_timer;
   struct list_head task_node;
-  long unsigned period;			// period
-  long unsigned ptime;			// processing time
-  long previous_time;  
-  int first_yield_call;
-  int  task_state;
+  unsigned long proc_util;
+  unsigned long maj_fault_ct;
+  unsigned long min_fault_ct;
 };
 
 //PROC FILESYSTEM ENTRIES
