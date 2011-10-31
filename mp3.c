@@ -663,6 +663,24 @@ int perform_scheduling(void *data){
 
 }
 
+void get_stats (void *arg) {
+
+  unsigned long maj, min, cpu;
+
+  // for every item on our list, get the stats
+  list_for_each_safe(pos, tmp, &mp2_task_list)
+  {
+    p = list_entry(pos, struct mp2_task_struct, task_node);
+    // read the stats and store them on the buffer
+    if(get_cpu_use(p->pid, &min, &maj, &cpu)){
+      // an error occur
+      printk(KERN_INFO "Unable to get stats for pid=%d\n", p->pid);
+    }else{
+      // store the information on the memory buffer
+    }
+  }
+
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -696,6 +714,12 @@ int __init my_module_init(void)
   register_task_file=create_proc_entry("status", 0666, mp3_proc_dir);
   register_task_file->read_proc= proc_registration_read;
   register_task_file->write_proc=proc_registration_write;
+
+  // create the work queue
+  wqueue = kmalloc(sizeof(delayed_work));
+  if(wqueue){
+    INIT_DELAYED_WORK(wqueue, get_stats);
+  }
 
   //dispatch_kthread = kthread_create(perform_scheduling, NULL, "kmp2");  
 
@@ -741,6 +765,10 @@ void __exit my_module_exit(void)
   
   stop_dispatch_thread=1;
   wake_up_process(dispatch_kthread);
+
+  // need to stop the workqueue and free memory
+  queue_stop=1;
+  kfree(wqueue);
   
   _destroy_task_list();
   vfree(p_mem);   // deallocate profile buffer 

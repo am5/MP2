@@ -20,6 +20,7 @@
 #include <linux/list.h>
 #include <asm/uaccess.h>
 #include <linux/vmalloc.h>
+#include <linux/workqueue.h>
 #include "mp3_given.h"
 
 //#define JIFF_TO_MS(t) ((t*1000)/ HZ)
@@ -54,6 +55,10 @@ int stop_dispatch_thread=0;
 // PROFILE BUFFER
 int *p_addr; 		// pointer to memory area 
 unsigned long mem_size; // memory area size
+
+// workqueue
+struct delayed_work *wqueue;
+queue_stop=0;		// determines when work should stop
 
 LIST_HEAD(mp3_task_list);
 static DEFINE_MUTEX(mp3_mutex);
