@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// MP2:		Virtual Memory Page Fault Measurement 
+// MP3:		Virtual Memory Page Fault Measurement 
 // Name:        mp3.c
 // Date: 	11/5/2011
 // Group:	20: Intisar Malhi, Alexandra Mirtcheva, and Roberto Moreno
@@ -13,78 +13,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "mp3.h"
-mem_size = 512;
-
-///////////////////////////////////////////////////////////////////////////////
-//
-// FUNCTION NAME:  set_timer
-//
-// PROCESSING:
-//
-//    This is a helper function to set a timer with a single call, and 
-//    specifies the relative time in milliseconds. 
-//    (Kernel timers are absolute and expressed in jiffies)
-//
-// INPUTS:
-//
-//    tlist 	    - the timer list
-//    release_time  - the time when the current task has to be released. 
-//
-// RETURN:
-//
-//   None
-//
-// IMPLEMENTATION NOTES
-//
-//   None 
-//
-///////////////////////////////////////////////////////////////////////////////
-inline void set_timer(struct timer_list* tlist, long release_time)
-{
-  BUG_ON(tlist==NULL);
-  tlist->expires=jiffies+MS_TO_JIFF(release_time);
-  mod_timer(tlist, tlist->expires);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-//
-// FUNCTION NAME:  up_handler
-//
-// PROCESSING:
-//
-//    This function implements the timer handler; it signals the dispatcher 
-//    thread that an update much occur. 
-//    (This must be very fast so we have to use a two halves approach)
-//
-// INPUTS:
-//
-//    ptr - points to the PID of the thread to be ran  
-//
-// RETURN:
-//
-//   None
-//
-// IMPLEMENTATION NOTES
-//
-//   None 
-//
-///////////////////////////////////////////////////////////////////////////////
-void up_handler(unsigned long ptr)
-{
-  // change the state of the current task to ready since our timer expired
-  struct mp2_task_struct *mytask;
-  mytask=(struct mp2_task_struct *) ptr;
-  if(mytask != NULL){
-	printk(KERN_INFO "Setting mytask to state ready\n");
-  	mytask->task_state = TASK_STATE_READY;
-        set_task_state(mytask->linux_task, TASK_INTERRUPTIBLE);
-	printk(KERN_INFO "Task state is %d\n", mytask->task_state);
-  }
-
-  printk(KERN_INFO "Calling our dispatch threadPID %ld\n", mytask->pid);
-  //SCHEDULE THE THREAD TO RUN (WAKE UP THE THREAD)
-  wake_up_process(dispatch_kthread);
-}
+unsigned long mem_size = 512;
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -107,10 +36,10 @@ void up_handler(unsigned long ptr)
 //   This function is called by the register_task function. 
 //
 ///////////////////////////////////////////////////////////////////////////////
-void _insert_task(struct mp2_task_struct* t)
+void _insert_task(struct mp3_task_struct* t)
 {
   BUG_ON(t==NULL);
-  list_add_tail(&t->task_node, &mp2_task_list);
+  list_add_tail(&t->task_node, &mp3_task_list);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -136,14 +65,14 @@ void _insert_task(struct mp2_task_struct* t)
 //   None.  
 //
 ///////////////////////////////////////////////////////////////////////////////
-struct mp2_task_struct* _lookup_task(long pid)
+struct mp3_task_struct* _lookup_task(long pid)
 {
   struct list_head *pos;
-  struct mp2_task_struct *p;
+  struct mp3_task_struct *p;
   
-  list_for_each(pos, &mp2_task_list)
+  list_for_each(pos, &mp3_task_list)
   {
-    p = list_entry(pos, struct mp2_task_struct, task_node);
+    p = list_entry(pos, struct mp3_task_struct, task_node);
     if(p->pid == pid)
       return p;
   }
@@ -151,58 +80,48 @@ struct mp2_task_struct* _lookup_task(long pid)
   return NULL;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-//
-// FUNCTION NAME:  should_admit
-//
-// PROCESSING:
-//
-//    This function implements the admission control 
-//
-// INPUTS:
-//
-//    period -		the time from when a job begins executing until the time the
-//			next job starts running 
-//    processing time - the total time it takes for a single job to run 
-//
-// RETURN:
-//
-//   bool - TRUE if the function should be admitted (the current task can be 
-//          scheduled without missing any deadline according to the utilization 
-//          bound-based method). 
-//          FALSE if the function should not be admitted (the current task cannot
-//          be scheduled without missing any deadline according to the utilization 
-//          bound-based method)
-//
-// IMPLEMENTATION NOTES
-//
-//   The admission criteria is based on the utilization bound-based method: 
-//   the method establishes that a task is schedulable if the sum of the processing 
-//   time of all tasks in system divided by the period of all tasks in the system
-//   is less than 0.693. 
-//
-///////////////////////////////////////////////////////////////////////////////
-bool should_admit(long period, long processingTime)
-{
-  long admissionThreshold = 693; //normalized by multiplying by 1000
-  struct list_head *pos;
-  struct mp2_task_struct *p;
-  long summation = 0;
-
-  summation = summation + PROCESSING_TIME_RATIO(processingTime, period);
-
-  list_for_each(pos, &mp2_task_list)
-  {
-    p = list_entry(pos, struct mp2_task_struct, task_node);
-    summation = summation + PROCESSING_TIME_RATIO(p->ptime, p->period);    
+void work_handler (void *arg){
+  // run as long as flag is true
+  unsigned long maj, min, cpu;
+  struct list_head *pos, *tmp;
+  struct mp3_task_struct *p;
+  if(queue_stop){
+    return;
   }
-
-  if(summation <= admissionThreshold)
-    return true;
-  else
-    return false;
+  // the the stats for all the entries in our list and store them on the buffer
+  // for every item on our list, get the stats
+  list_for_each_safe(pos, tmp, &mp3_task_list)
+  {
+    p = list_entry(pos, struct mp3_task_struct, task_node);
+    // read the stats and store them on the buffer
+    if(get_cpu_use(p->pid, &min, &maj, &cpu)){
+      // an error occur
+      printk(KERN_INFO "Unable to get stats for pid=%ld\n", p->pid);
+    }else{
+      // store the information on the memory buffer
+      // TODO: need to store information on the buffer
+    }
+  }
+  // schedule the work queue again
+  schedule_delayed_work(wqueue, HZ/20);
 }
 
+void create_mp3queue (void) {
+  // check if we have tasks registered
+  
+  // initialize the work queue
+  // create the work queue
+  wqueue = kmalloc(sizeof(struct delayed_work), GFP_KERNEL);
+  if(wqueue){
+    INIT_DELAYED_WORK(wqueue, work_handler);
+    printk("Starting the work handler\n");
+    // schedule for every 50 milliseconds (20 times per second)
+    schedule_delayed_work(wqueue, HZ/20);
+  }else{
+    // unable to allocate memory for work queue
+    printk("create_mp3queue: Unable to allocate memory for work queue object");
+  }
+}
 ///////////////////////////////////////////////////////////////////////////////
 //
 // FUNCTION NAME:  register_task
@@ -237,15 +156,12 @@ bool should_admit(long period, long processingTime)
 ///////////////////////////////////////////////////////////////////////////////
 int register_task(long pid, long period, long processingTime)
 {
-  struct mp2_task_struct *p;
+  struct mp3_task_struct *p;
   
   //only add if PID doesn't already exist
   if(_lookup_task(pid) != NULL) return -1;
   
-  //admission control
-  if(!should_admit(period, processingTime)) return -1; 
-
-  p = kmalloc(sizeof(struct mp2_task_struct), GFP_KERNEL);
+  p = kmalloc(sizeof(struct mp3_task_struct), GFP_KERNEL);
 
   // get the task by given PID
   p->linux_task = find_task_by_pid(pid);
@@ -260,19 +176,15 @@ int register_task(long pid, long period, long processingTime)
 
   // Update the task structure
   p->pid = pid;
-  p->period = period;
-  p->ptime = processingTime;
-  p->task_state = TASK_STATE_SLEEPING;
-  p->first_yield_call = 0;
-  init_timer(&(p->wakeup_timer));
-  (p->wakeup_timer).function=up_handler;
-  (p->wakeup_timer).data=(unsigned long) p;
-  
 
   // Insert the task into the task list 
-  mutex_lock(&mp2_mutex);
+  mutex_lock(&mp3_mutex);
   _insert_task(p);
-  mutex_unlock(&mp2_mutex);
+  mutex_unlock(&mp3_mutex);
+
+  // create the work queue job
+  create_mp3queue();
+
   printk(KERN_INFO "Task added to list\n");
   return 0;
 }
@@ -304,24 +216,22 @@ int register_task(long pid, long period, long processingTime)
 int unregister_task(long pid)
 {
   struct list_head *pos, *tmp;
-  struct mp2_task_struct *p;
+  struct mp3_task_struct *p;
   int found = -1;  // init to not found
 
 
   // loop through the list until we find our PID, then remove it
-  list_for_each_safe(pos, tmp, &mp2_task_list)
+  list_for_each_safe(pos, tmp, &mp3_task_list)
   {
-    p = list_entry(pos, struct mp2_task_struct, task_node);
+    p = list_entry(pos, struct mp3_task_struct, task_node);
     // is this is our task?
     if(p->pid == pid){
       printk(KERN_INFO "Found node with PID %ld\n", p->pid);
       // yes, we need to remove this entry
-      mutex_lock(&mp2_mutex);
-      // remove the timer
-      del_timer_sync(&(p->wakeup_timer));
+      mutex_lock(&mp3_mutex);
       list_del(pos);
       kfree(p);
-      mutex_unlock(&mp2_mutex);
+      mutex_unlock(&mp3_mutex);
       printk(KERN_INFO "Removing PID %ld\n", pid);
       found=0;
     } // no, keep searching
@@ -329,83 +239,6 @@ int unregister_task(long pid)
 
   // return the result status
   return found;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-//
-// FUNCTION NAME:  yield_task
-//
-// PROCESSING:
-//
-//    This function yields the CPU to the next task in the READY queue
-//    with the highest priority 
-//
-// INPUTS:
-//
-//    pid - the process ID of the calling task
-//
-// RETURN:
-//
-//   int - (-1) if there is no task associated with the given PID
-//	        (0) if the task is registered successfully. 
-//
-// IMPLEMENTATION NOTES
-//
-//   The unregister_task function uses the Linux kernel linked-list
-//   API to search for a given task. If the task is found in the list, the 
-//   memory is freed and the node is removed from the task list. 
-//
-///////////////////////////////////////////////////////////////////////////////
-int yield_task(long pid)
-{
-  struct list_head *pos, *tmp;
-  struct mp2_task_struct *p = NULL;
-
-  // loop through the list until we find our PID
-  list_for_each_safe(pos, tmp, &mp2_task_list)
-  {
-    p = list_entry(pos, struct mp2_task_struct, task_node);
-    // is this is our task?
-    if(p->pid == pid)
-    {
-      printk(KERN_INFO "yield_task: Found node with PID %ld\n", p->pid);
-      break;
-    } 
-  }
- 
-  if(p != NULL && p->pid == pid)
-  {
-    // indicate that it's the first time we're calling yield
-    if(p->first_yield_call == 0)
-    {
-      printk(KERN_INFO "This is the first time we're yielding, pid=%ld\n", p->pid);
-      p->first_yield_call = 1;
-      p->previous_time = jiffies;
-    }
-
-    //if next period has not started yet
-    //  set state to sleeping and wake up timer
-    if(jiffies < MS_TO_JIFF(p->period) + p->previous_time)
-    {
-      printk(KERN_INFO "Our period has not started yet, pid=%ld\n", p->pid);
-      //adjust new previous
-      p->previous_time = p->previous_time + MS_TO_JIFF(p->period);
-
-      // change task state to sleeping
-      p->task_state = TASK_STATE_SLEEPING;
-      set_task_state(p->linux_task, TASK_UNINTERRUPTIBLE);
-    
-      printk(KERN_INFO "Setting the wakeup timer to %ld\n", p->period);
-      // setup the wakeup_timer
-      set_timer(&(p->wakeup_timer), p->period);
-    }
-  }
-
-  // pre-empt the CPU to the next READY application 
-  // with the highest priority
-  wake_up_process(dispatch_kthread);
- 
-  return 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -442,19 +275,18 @@ int proc_registration_read(char *page, char **start, off_t off, int count, int* 
 {
   off_t i=0;
   struct list_head *pos, *tmp;
-  struct mp2_task_struct *p;
+  struct mp3_task_struct *p;
 
   printk(KERN_INFO "Reading from proc file\n");
   // should return the number of bytes printed
 
-  mutex_lock(&mp2_mutex);
+  mutex_lock(&mp3_mutex);
   // loop through the task list and print the PID, period and processing time (space delimited)
-  list_for_each_safe(pos, tmp, &mp2_task_list)
+  list_for_each_safe(pos, tmp, &mp3_task_list)
   {
-    p = list_entry(pos, struct mp2_task_struct, task_node);
-    i += sprintf(page+off+i, "%ld %ld %ld\n", p->pid, p->period, p->ptime);
+    p = list_entry(pos, struct mp3_task_struct, task_node);
   }
-  mutex_unlock(&mp2_mutex);
+  mutex_unlock(&mp3_mutex);
   *eof=1;
   return i;
 }
@@ -502,7 +334,7 @@ int proc_registration_write(struct file *file, const char *buffer, unsigned long
   action=kmalloc(2, GFP_KERNEL);
   status=copy_from_user(proc_buffer, buffer, count);
   sscanf(proc_buffer, "%s %ld %ld %ld", action, &pid, &period, &processingTime);
-  printk(KERN_INFO "From /proc/mp2/status: %s, %ld, %ld, %ld\n", action, pid, period, processingTime); 
+  printk(KERN_INFO "From /proc/mp3/status: %s, %ld, %ld, %ld\n", action, pid, period, processingTime); 
 
   if(strcmp(action, "R")==0){
     printk(KERN_INFO "Going to register PID %ld\n", pid);
@@ -516,8 +348,6 @@ int proc_registration_write(struct file *file, const char *buffer, unsigned long
   }
   if(strcmp(action, "Y")==0){
     printk(KERN_INFO "Going to yield PID %ld\n", pid);
-    // perform yield
-    yield_task(pid);
   }
   // free the memory
   kfree(proc_buffer);
@@ -551,136 +381,18 @@ int proc_registration_write(struct file *file, const char *buffer, unsigned long
 void _destroy_task_list(void)
 {
   struct list_head *pos, *tmp;
-  struct mp2_task_struct *p;
+  struct mp3_task_struct *p;
 
-  list_for_each_safe(pos, tmp, &mp2_task_list)
+  list_for_each_safe(pos, tmp, &mp3_task_list)
     {
-      p = list_entry(pos, struct mp2_task_struct, task_node);
-      //destroy timer
-      del_timer_sync(&(p->wakeup_timer));
+      p = list_entry(pos, struct mp3_task_struct, task_node);
       //remove from list
       list_del(pos);
       printk(KERN_INFO "Destroying task associated with PID %ld\n", p->pid);
       kfree(p);
     }
 }
-///////////////////////////////////////////////////////////////////////////////
-//
-// FUNCTION NAME: perform_scheduling
-//
-// PROCESSING:
-//
-//    This function starts the dispatcher thread and performs any scheduling
-//    updates 
-//
-// INPUTS:
-//
-//    data - pointer to private data 
-//
-// RETURN:
-//
-//   int -  
-//
-// IMPLEMENTATION NOTES
-//
-//   
-//
-///////////////////////////////////////////////////////////////////////////////
-int perform_scheduling(void *data){
-  
-  struct mp2_task_struct *highest_priority = NULL;
-  struct sched_param highest_prio_sparam;
-  struct list_head *pos;
-  struct mp2_task_struct *p;
 
-  while(1){
-
-    mutex_lock(&mp2_mutex);
-    if(stop_dispatch_thread==1)
-    {
-      mutex_unlock(&mp2_mutex);
-      break;
-    }
-    highest_priority=NULL;
-
-    //find highest priority
-    list_for_each(pos, &mp2_task_list)
-    {
-      p = list_entry(pos, struct mp2_task_struct, task_node);
-      if(p->task_state == TASK_STATE_READY)
-      {
-         // initialize the first task as high priority
-         if(highest_priority == NULL)
-           highest_priority = p;
-         printk("Current PID=%ld, period=%ld\n", p->pid, p->period);
-         if(p->period < highest_priority->period){
-           printk("PID %ld period (%ld) is less than period of highest priority (PID=%ld, period=%ld)\n", p->pid, p->period, highest_priority->pid, highest_priority->period);
-           highest_priority = p;
-         }
-      }
-    }
-    mutex_unlock(&mp2_mutex);
-
-    if(highest_priority != NULL){
-      if(mp2_current_task != NULL){
-        if(mp2_current_task->pid != highest_priority->pid){
-          printk(KERN_INFO "New high priority process PID=%ld, context switch\n", highest_priority->pid);
-          // set higher priority process
-          highest_priority->task_state = TASK_STATE_RUNNING;
-          wake_up_process(highest_priority->linux_task);
-          highest_prio_sparam.sched_priority = MAX_USER_RT_PRIO-1;
-          sched_setscheduler(highest_priority->linux_task, SCHED_FIFO, &highest_prio_sparam);
-
-          // set lower priority process
-          //set to READY only if it was running
-          if(mp2_current_task->task_state == TASK_STATE_RUNNING)
-            mp2_current_task->task_state = TASK_STATE_READY;
-
-          struct sched_param sparam;
-          sparam.sched_priority = 0;
-          sched_setscheduler(mp2_current_task->linux_task, SCHED_NORMAL, &sparam);
-        }else{
-          printk(KERN_INFO "mp2_current_task (PID=%ld, state=%d) is EQUAL to highest_priority (PID=%ld, state=%d)\n", mp2_current_task->pid, mp2_current_task->task_state, highest_priority->pid, highest_priority->task_state);
-          mp2_current_task->task_state = TASK_STATE_RUNNING;
-          wake_up_process(mp2_current_task->linux_task);
-        }
-      }else{
-        printk(KERN_INFO "Current task is NULL, context switch\n");
-        mp2_current_task = highest_priority;
-        mp2_current_task->task_state = TASK_STATE_RUNNING;
-        wake_up_process(mp2_current_task->linux_task);
-        highest_prio_sparam.sched_priority = MAX_USER_RT_PRIO-1;
-        sched_setscheduler(mp2_current_task->linux_task, SCHED_FIFO, &highest_prio_sparam);
-      }
-    }else{
-      printk(KERN_INFO "Highest Priority is NULL\n");
-    }
-    //put scheduler to sleep until woken up again
-    set_current_state(TASK_INTERRUPTIBLE);
-    schedule();
-  }
-  return 0;
-
-}
-
-void get_stats (void *arg) {
-
-  unsigned long maj, min, cpu;
-
-  // for every item on our list, get the stats
-  list_for_each_safe(pos, tmp, &mp2_task_list)
-  {
-    p = list_entry(pos, struct mp2_task_struct, task_node);
-    // read the stats and store them on the buffer
-    if(get_cpu_use(p->pid, &min, &maj, &cpu)){
-      // an error occur
-      printk(KERN_INFO "Unable to get stats for pid=%d\n", p->pid);
-    }else{
-      // store the information on the memory buffer
-    }
-  }
-
-}
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -708,28 +420,13 @@ void get_stats (void *arg) {
 ///////////////////////////////////////////////////////////////////////////////
 int __init my_module_init(void)
 {
-  struct sched_param sparam;
-
   mp3_proc_dir=proc_mkdir("mp3",NULL);
   register_task_file=create_proc_entry("status", 0666, mp3_proc_dir);
   register_task_file->read_proc= proc_registration_read;
   register_task_file->write_proc=proc_registration_write;
 
-  // create the work queue
-  wqueue = kmalloc(sizeof(delayed_work));
-  if(wqueue){
-    INIT_DELAYED_WORK(wqueue, get_stats);
-  }
-
-  //dispatch_kthread = kthread_create(perform_scheduling, NULL, "kmp2");  
-
-  //set scheduling thread to higher priority than task so that this cannot be preempted.
-  //sparam.sched_priority = MAX_RT_PRIO;
-  //sched_setscheduler(dispatch_kthread, SCHED_FIFO, &sparam);
-
   // Allocate memory buffer
   p_addr = vmalloc(mem_size);
-  
 
   //THE EQUIVALENT TO PRINTF IN KERNEL SPACE
   printk(KERN_INFO "MP3 Module LOADED\n");
@@ -763,15 +460,12 @@ void __exit my_module_exit(void)
   remove_proc_entry("status", mp3_proc_dir);
   remove_proc_entry("mp3", NULL);
   
-  stop_dispatch_thread=1;
-  wake_up_process(dispatch_kthread);
-
   // need to stop the workqueue and free memory
   queue_stop=1;
   kfree(wqueue);
   
   _destroy_task_list();
-  vfree(p_mem);   // deallocate profile buffer 
+  vfree(p_addr);   // deallocate profile buffer 
   printk(KERN_INFO "MP3 Module UNLOADED\n");
 }
 

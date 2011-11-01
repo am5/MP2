@@ -23,16 +23,6 @@
 #include <linux/workqueue.h>
 #include "mp3_given.h"
 
-//#define JIFF_TO_MS(t) ((t*1000)/ HZ)
-//#define MS_TO_JIFF(j) ((j * HZ) / 1000)
-//#define UPDATE_TIME 5000
-
-//#define PROCESSING_TIME_RATIO(t, p) ((t*1000) / p)
- 
-//#define TASK_STATE_READY     0
-//#define TASK_STATE_RUNNING   1
-//#define TASK_STATE_SLEEPING  2
-
 // PROCESS CONTROL BLOCK 
 struct mp3_task_struct
 {
@@ -49,8 +39,6 @@ static struct proc_dir_entry *mp3_proc_dir;
 static struct proc_dir_entry *register_task_file;
 
 struct mp3_task_struct *mp3_current_task;
-struct task_struct* dispatch_kthread;
-int stop_dispatch_thread=0;
 
 // PROFILE BUFFER
 int *p_addr; 		// pointer to memory area 
@@ -58,7 +46,7 @@ unsigned long mem_size; // memory area size
 
 // workqueue
 struct delayed_work *wqueue;
-queue_stop=0;		// determines when work should stop
+int queue_stop=0;	// determines when work should stop
 
 LIST_HEAD(mp3_task_list);
 static DEFINE_MUTEX(mp3_mutex);
