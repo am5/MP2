@@ -107,8 +107,6 @@ void work_handler (void *arg){
 }
 
 void create_mp3queue (void) {
-  // check if we have tasks registered
-  
   // initialize the work queue
   // create the work queue
   wqueue = kmalloc(sizeof(struct delayed_work), GFP_KERNEL);
@@ -156,7 +154,8 @@ void create_mp3queue (void) {
 ///////////////////////////////////////////////////////////////////////////////
 int register_task(long pid, long period, long processingTime)
 {
-  struct mp3_task_struct *p;
+  struct mp3_task_struct *p, *first;
+  struct list_head *pos, *tmp;
   
   //only add if PID doesn't already exist
   if(_lookup_task(pid) != NULL) return -1;
@@ -182,8 +181,14 @@ int register_task(long pid, long period, long processingTime)
   _insert_task(p);
   mutex_unlock(&mp3_mutex);
 
-  // create the work queue job
-  create_mp3queue();
+  // create the work queue job if task list is empty
+  list_for_each_safe(pos, tmp, &mp3_task_list)
+  {
+    first = list_entry(pos, struct mp3_task_struct, task_node);
+    if(first==NULL)
+      create_mp3queue();
+    break;
+  }
 
   printk(KERN_INFO "Task added to list\n");
   return 0;
@@ -236,6 +241,9 @@ int unregister_task(long pid)
       found=0;
     } // no, keep searching
   }
+
+
+  /***IF LIST EMPTY - DELETE MP3QUEUE *****/
 
   // return the result status
   return found;
