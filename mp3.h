@@ -29,9 +29,9 @@ struct mp3_task_struct
   long pid;
   struct task_struct* linux_task;	// the real PCB
   struct list_head task_node;
-  unsigned long proc_util;
-  unsigned long maj_fault_ct;
-  unsigned long min_fault_ct;
+  unsigned long cpu;
+  unsigned long maj;
+  unsigned long min;
 };
 
 //PROC FILESYSTEM ENTRIES

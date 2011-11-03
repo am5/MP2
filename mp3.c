@@ -98,8 +98,10 @@ void work_handler (void *arg){
       // an error occur
       printk(KERN_INFO "Unable to get stats for pid=%ld\n", p->pid);
     }else{
-      // store the information on the memory buffer
-      // TODO: need to store information on the buffer
+      // store the sum of information for each PID
+      p->min += min;
+      p->maj += maj;
+      p->cpu += cpu;
     }
   }
   // schedule the work queue again
