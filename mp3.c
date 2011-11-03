@@ -183,6 +183,7 @@ int register_task(long pid, long period, long processingTime)
   _insert_task(p);
   mutex_unlock(&mp3_mutex);
 
+  /***NEED MUTEX HERE? *****/
   // create the work queue job if task list is empty
   list_for_each_safe(pos, tmp, &mp3_task_list)
   {
@@ -222,8 +223,8 @@ int register_task(long pid, long period, long processingTime)
 ///////////////////////////////////////////////////////////////////////////////
 int unregister_task(long pid)
 {
-  struct list_head *pos, *tmp;
-  struct mp3_task_struct *p;
+  struct list_head *pos,*pos2, *tmp, *tmp2;
+  struct mp3_task_struct *p, *first;
   int found = -1;  // init to not found
 
 
@@ -245,7 +246,15 @@ int unregister_task(long pid)
   }
 
 
-  /***IF LIST EMPTY - DELETE MP3QUEUE *****/
+  /***NEED MUTEX HERE? *****/
+  // delete the work queue job if task list is empty
+  list_for_each_safe(pos2, tmp2, &mp3_task_list)
+  {
+    first = list_entry(pos, struct mp3_task_struct, task_node);
+    if(first==NULL)
+      kfree(wqueue);
+    break;
+  }
 
   // return the result status
   return found;
@@ -295,6 +304,7 @@ int proc_registration_read(char *page, char **start, off_t off, int count, int* 
   list_for_each_safe(pos, tmp, &mp3_task_list)
   {
     p = list_entry(pos, struct mp3_task_struct, task_node);
+    i += sprintf(page+off+i, "%ld\n", p->pid);
   }
   mutex_unlock(&mp3_mutex);
   *eof=1;
@@ -351,7 +361,7 @@ int proc_registration_write(struct file *file, const char *buffer, unsigned long
     // perform registration
     register_task(pid, period, processingTime);
   }
-  if(strcmp(action, "D")==0){
+  if(strcmp(action, "U")==0){
     printk(KERN_INFO "Going to un-register PID %ld\n", pid);
     // perform de-registration
     unregister_task(pid);
