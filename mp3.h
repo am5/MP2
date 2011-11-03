@@ -12,6 +12,7 @@
 #ifndef __MP3_INCLUDE__
 #define __MP3_INCLUDE__
 
+#include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>
@@ -19,9 +20,34 @@
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <asm/uaccess.h>
+#include <asm/current.h>
+#include <asm/segment.h>
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
 #include "mp3_given.h"
+
+// CHAR DEVICE
+char memory_buf[12000];  // character device
+int open_dev(struct inode *inode, struct file *filep);
+int close_dev(struct inode *inode, struct file *filep);
+
+struct file_operations my_fops = {
+    open  : open_dev,
+    close : close_dev,
+    mmap  : mmap_dev
+};
+
+int open_dev(struct inode *inode, struct file *filep)
+{
+    MOD_INC_USE_COUNT;
+    return 0;
+}
+
+int close_dev(struct inode *inode, struct file *filep)
+{
+    MOD_DEC_USE_COUNT;
+    return 0;
+}
 
 // PROCESS CONTROL BLOCK 
 struct mp3_task_struct
