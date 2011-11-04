@@ -33,19 +33,16 @@ int close_dev(struct inode *inode, struct file *filep);
 
 struct file_operations mp3_fops = {
     open  : open_dev,
-    close : close_dev,
-    mmap  : mmap_dev
+    close : close_dev
 };
 
 int open_dev(struct inode *inode, struct file *filep)
 {
-    MOD_INC_USE_COUNT;
     return 0;
 }
 
 int close_dev(struct inode *inode, struct file *filep)
 {
-    MOD_DEC_USE_COUNT;
     return 0;
 }
 
