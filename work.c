@@ -53,7 +53,7 @@ int main(int argc, char* argv[])
   }
 
   msize = atoi(argv[1]);
-  if(msize>1024 || memsize<1){
+  if(msize>1024 || msize<1){
     printf("memsize shall be between 1 and 1024\n");
     return -1;
   }
