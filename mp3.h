@@ -33,7 +33,7 @@ int close_dev(struct inode *inode, struct file *filep);
 
 struct file_operations mp3_fops = {
     open  : open_dev,
-    close : close_dev
+    release : close_dev
 };
 
 int open_dev(struct inode *inode, struct file *filep)
