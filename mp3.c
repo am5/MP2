@@ -450,7 +450,7 @@ int __init my_module_init(void)
 
   // register the character device 
   if(!register_chrdev(693, "mp3_char_device", &mp3_fops))
-	printfk(KERN_INFO "mp3_char_device registered \n");
+	printk(KERN_INFO "mp3_char_device registered \n");
   else
 	printk(KERN_INFO "Could not register mp3_char_device \n");
  
