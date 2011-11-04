@@ -448,6 +448,13 @@ int __init my_module_init(void)
   // Allocate memory buffer
   p_addr = vmalloc(mem_size);
 
+  // register the character device 
+  if(!register_chrdev(693, "mp3_char_device", &mp3_fops))
+	printfk(KERN_INFO "mp3_char_device registered \n");
+  else
+	printk(KERN_INFO "Could not register mp3_char_device \n");
+ 
+
   //THE EQUIVALENT TO PRINTF IN KERNEL SPACE
   printk(KERN_INFO "MP3 Module LOADED\n");
   return 0;   
@@ -483,6 +490,9 @@ void __exit my_module_exit(void)
   // need to stop the workqueue and free memory
   queue_stop=1;
   kfree(wqueue);
+
+  // deregister the character device 
+  unregister_chrdev(693, "mp3_char_device");
   
   _destroy_task_list();
   vfree(p_addr);   // deallocate profile buffer 
