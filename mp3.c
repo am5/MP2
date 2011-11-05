@@ -13,8 +13,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "mp3.h"
-#include <linux/mm.h>
-unsigned long mem_size = 512;
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -403,7 +401,62 @@ int proc_registration_write(struct file *file, const char *buffer, unsigned long
 }
 ///////////////////////////////////////////////////////////////////////////////
 //
-// FUNCTION NAME: mmap()
+// FUNCTION NAME: open_dev
+//
+// PROCESSING:
+//
+//	  Callback handler for the device open function. 
+//
+// INPUTS:
+//
+//    inode  - The inode of the character device.
+//	  filep  - The pointer to the structure of the device file
+//
+// RETURN:
+//
+//   0
+//
+// IMPLEMENTATION NOTES
+//
+//   Function is only defined and does not do any processing. 
+//
+///////////////////////////////////////////////////////////////////////////////
+int open_dev(struct inode *inode, struct file *filep)
+{
+    return 0;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME: close_dev
+//
+// PROCESSING:
+//
+//	  Callback handler for the device close function. 
+//
+// INPUTS:
+//
+//    inode  - The inode of the character device.
+//	  filep  - The pointer to the structure of the device file
+//    
+//
+// RETURN:
+//
+//   0 
+//
+// IMPLEMENTATION NOTES
+//
+//   Function is only defined and does not do any processing. 
+//
+///////////////////////////////////////////////////////////////////////////////
+int close_dev(struct inode *inode, struct file *filep)
+{
+    return 0;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME: mmap
 //
 // PROCESSING:
 //

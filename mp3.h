@@ -24,7 +24,10 @@
 #include <asm/segment.h>
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
+#include <linux/mm.h>
 #include "mp3_given.h"
+
+unsigned long mem_size = 512;
 
 // CHAR DEVICE
 char memory_buf[12000];  // character device
@@ -37,16 +40,6 @@ struct file_operations mp3_fops = {
     mmap  : mmap,
     release : close_dev
 };
-
-int open_dev(struct inode *inode, struct file *filep)
-{
-    return 0;
-}
-
-int close_dev(struct inode *inode, struct file *filep)
-{
-    return 0;
-}
 
 // PROCESS CONTROL BLOCK 
 struct mp3_task_struct
