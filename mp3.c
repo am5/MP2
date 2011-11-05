@@ -81,15 +81,36 @@ struct mp3_task_struct* _lookup_task(long pid)
   return NULL;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:  work_handler
+//
+// PROCESSING:
+//
+//    This function gets the sample information for each registered task.
+//
+// INPUTS:
+//
+//    arg - pointer to data of the work queue 
+//
+// RETURN:
+//
+//    Nothing.
+//
+// IMPLEMENTATION NOTES
+//
+//   None.  
+//
+///////////////////////////////////////////////////////////////////////////////
 void work_handler (void *arg){
   // run as long as flag is true
-  unsigned long maj, min, cpu;
-  struct list_head *pos, *tmp;
-  struct mp3_task_struct *p;
   if(queue_stop){
     return;
   }
-  // the the stats for all the entries in our list and store them on the buffer
+  unsigned long maj, min, cpu;
+  struct list_head *pos, *tmp;
+  struct mp3_task_struct *p;
+  int p_index=0;	// keeps track of the current task
   // for every item on our list, get the stats
   list_for_each_safe(pos, tmp, &mp3_task_list)
   {
@@ -102,7 +123,14 @@ void work_handler (void *arg){
       // store the sum of information for each PID
       p->min += min;
       p->maj += maj;
-      p->cpu += cpu;
+      p->cpu = (p->linux_task->stime + p->linux_task->utime)/jiffies;
+
+      // store the information on the memory buffer
+      *(p_addr + (p_index * 4) + 0) = jiffies;
+      *(p_addr + (p_index * 4) + 1) = p->min;
+      *(p_addr + (p_index * 4) + 2) = p->maj;
+      *(p_addr + (p_index * 4) + 3) = p->cpu;
+      p_index++;
     }
   }
   // schedule the work queue again
