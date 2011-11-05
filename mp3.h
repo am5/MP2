@@ -30,9 +30,11 @@
 char memory_buf[12000];  // character device
 int open_dev(struct inode *inode, struct file *filep);
 int close_dev(struct inode *inode, struct file *filep);
+unsigned int mmap(int addr, int buff_len, pgprot_t prot, unsigned short flags, int fd, int offset);
 
 struct file_operations mp3_fops = {
     open  : open_dev,
+    mmap  : mmap,
     release : close_dev
 };
 

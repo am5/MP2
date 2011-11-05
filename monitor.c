@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #define NPAGES (128)   // The size of profiler buffer (Unit: memory page)
 #define BUFD_MAX 48000 // The max number of profiled samples stored in the profiler buffer
@@ -27,9 +28,10 @@ void *buf_init(char *fname)
         return NULL;
     }
   }
+  errno=0;
   kadr = mmap(0, buf_len, PROT_READ|PROT_WRITE, MAP_SHARED, buf_fd, 0);
   if (kadr == MAP_FAILED){
-      printf("buf file open error.\n");
+      printf("buf file open error, errno=%d.\n", errno);
       return NULL;
   }
 
@@ -52,7 +54,7 @@ int main(int argc, char* argv[])
   int i;
 
   // Open the char device and mmap()
-  buf = buf_init("node");
+  buf = buf_init("./node");
   if(!buf)
     return -1;
   
