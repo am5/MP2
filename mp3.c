@@ -488,6 +488,8 @@ unsigned int mmap(int addr, int buff_len, pgprot_t prot, unsigned short flags, i
     pfn = vmalloc_to_pfn((void *)addr);
 
     remap_pfn_range(vma, i, pfn, PAGE_SIZE, PAGE_SHARED);
+    
+    addr += PAGE_SIZE;
   }
  
   return vma->vm_start;
