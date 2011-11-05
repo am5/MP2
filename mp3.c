@@ -392,12 +392,16 @@ int proc_registration_write(struct file *file, const char *buffer, unsigned long
 //
 //
 ///////////////////////////////////////////////////////////////////////////////
-unsigned int mmap(int addr, int buff_len, int prot, int flags, int fd, int offset)
+unsigned int mmap(int addr, int buff_len, pgprot_t prot, unsigned short flags, int fd, int offset)
 {
   struct vm_area_struct *vma;
   unsigned long pfn=0;
   int i;
   
+  vma = kmalloc(sizeof(struct vm_area_struct), GFP_KERNEL);
+  vma->vm_page_prot = prot;
+  vma->vm_flags = flags;
+
   for(i=0; i < mem_size; i+= PAGE_SIZE)
   {
     pfn = vmalloc_to_pfn((void *)addr);
