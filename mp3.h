@@ -27,7 +27,7 @@
 #include <linux/mm.h>
 #include "mp3_given.h"
 
-unsigned long mem_size = 512;
+unsigned long mem_size = 128;
 
 // CHAR DEVICE
 char memory_buf[12000];  // character device

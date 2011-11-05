@@ -124,10 +124,10 @@ void work_handler (void *arg){
       p->cpu = (p->linux_task->stime + p->linux_task->utime)/jiffies;
 
       // store the information on the memory buffer
-      *(p_addr + (p_index * 4) + 0) = jiffies;
-      *(p_addr + (p_index * 4) + 1) = p->min;
-      *(p_addr + (p_index * 4) + 2) = p->maj;
-      *(p_addr + (p_index * 4) + 3) = p->cpu;
+      *(p_addr + (p_index * PAGE_SIZE) + 0) = jiffies;
+      *(p_addr + (p_index * PAGE_SIZE) + 1) = p->min;
+      *(p_addr + (p_index * PAGE_SIZE) + 2) = p->maj;
+      *(p_addr + (p_index * PAGE_SIZE) + 3) = p->cpu;
       p_index++;
     }
   }
@@ -564,7 +564,8 @@ int __init my_module_init(void)
   register_task_file->write_proc=proc_registration_write;
 
   // Allocate memory buffer
-  p_addr = vmalloc(mem_size);
+  //p_addr = vmalloc(mem_size);
+  p_addr = vmalloc(mem_size*PAGE_SIZE);
 
   // register the character device 
   if(!register_chrdev(693, "mp3_char_device", &mp3_fops))
