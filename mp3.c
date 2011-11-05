@@ -367,9 +367,6 @@ int proc_registration_write(struct file *file, const char *buffer, unsigned long
     // perform de-registration
     unregister_task(pid);
   }
-  if(strcmp(action, "Y")==0){
-    printk(KERN_INFO "Going to yield PID %ld\n", pid);
-  }
   // free the memory
   kfree(proc_buffer);
   kfree(action);
@@ -398,15 +395,18 @@ int proc_registration_write(struct file *file, const char *buffer, unsigned long
 unsigned int mmap(int addr, int buff_len, int prot, int flags, int fd, int offset)
 {
   unsigned int address;
-  unsigned long vir_addr = 0;
-  unsigned long pfn = vmalloc_to_pfn((void *)addr);
+  unsigned long vir_addr = 0, pfn=0;
+  int i;
+  
+  for(i=0; i < mem_size; i+= PAGE_SIZE)
+  {
+    pfn = vmalloc_to_pfn((void *)addr);
 
-  int rc = remap_pfn_range(address, vir_addr, pfn, PAGE_SIZE, PAGE_SHARED);
+    remap_pfn_range(address, vir_addr, pfn, PAGE_SIZE, PAGE_SHARED);
+  }
  
-  if(rc == 0)
-    return address;
-  else
-    return NULL;
+  return address;
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////
