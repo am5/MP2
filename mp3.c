@@ -394,7 +394,6 @@ int proc_registration_write(struct file *file, const char *buffer, unsigned long
 ///////////////////////////////////////////////////////////////////////////////
 unsigned int mmap(int addr, int buff_len, int prot, int flags, int fd, int offset)
 {
-  unsigned int address;
   struct vm_area_struct *vma;
   unsigned long pfn=0;
   int i;
@@ -403,10 +402,10 @@ unsigned int mmap(int addr, int buff_len, int prot, int flags, int fd, int offse
   {
     pfn = vmalloc_to_pfn((void *)addr);
 
-    remap_pfn_range(vma, vma->vm_start, pfn, PAGE_SIZE, PAGE_SHARED);
+    remap_pfn_range(vma, i, pfn, PAGE_SIZE, PAGE_SHARED);
   }
  
-  return address;
+  return vma->vm_start;
   
 }
 
