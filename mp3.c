@@ -135,6 +135,27 @@ void work_handler (void *arg){
   schedule_delayed_work(wqueue, HZ/20);
 }
 
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:  create_mp3queue
+//
+// PROCESSING:
+//
+//    This function initializes the work_queue
+//
+// INPUTS:
+//
+//    arg - pointer to data of the work queue 
+//
+// RETURN:
+//
+//    Nothing.
+//
+// IMPLEMENTATION NOTES
+//
+//   None.  
+//
+///////////////////////////////////////////////////////////////////////////////
 void create_mp3queue (void) {
   // initialize the work queue
   // create the work queue
@@ -478,11 +499,10 @@ int mp3_mmap(struct file *filp, struct vm_area_struct *vma)
 //  struct vm_area_struct *vma;
   unsigned long pfn=0;
   int i;
-  
+
   for(i=0; i < mem_size; i+= PAGE_SIZE)
   {
     pfn = vmalloc_to_pfn(p_addr+i);
-
     remap_pfn_range(vma, vma->vm_start, pfn, PAGE_SIZE, PAGE_SHARED);
   }
  
@@ -561,12 +581,18 @@ int __init my_module_init(void)
 
   // Allocate memory buffer
   p_addr = vmalloc(mem_size*PAGE_SIZE);
+  if(!p_addr){
+    printk("Unable to allocate the memory (size=%ld)\n", mem_size * PAGE_SIZE);
+    return -1;
+  }
+  printk("Allocated memory (size=%ld)\n", mem_size * PAGE_SIZE);
   int i;
   // set the PG_reserved bit
   for(i=0; i < mem_size; i+= PAGE_SIZE)
   {
     SetPageReserved(vmalloc_to_page(p_addr+i));
   }
+  memset(p_addr, 0, mem_size * PAGE_SIZE);
 
 
   // register the character device 
@@ -616,6 +642,13 @@ void __exit my_module_exit(void)
   unregister_chrdev(693, "mp3_char_device");
   
   _destroy_task_list();
+  
+  int i;
+  // set the PG_reserved bit
+  for(i=0; i < (mem_size); i+= PAGE_SIZE)
+  {
+    ClearPageReserved(vmalloc_to_page(p_addr+i));
+  }
   vfree(p_addr);   // deallocate profile buffer 
   printk(KERN_INFO "MP3 Module UNLOADED\n");
 }

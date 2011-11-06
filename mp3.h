@@ -60,7 +60,7 @@ struct mp3_task_struct *mp3_current_task;
 
 // PROFILE BUFFER
 int *p_addr; 		// pointer to memory area 
-unsigned long mem_size; // memory area size
+//unsigned long mem_size; // memory area size
 
 // workqueue
 struct delayed_work *wqueue;

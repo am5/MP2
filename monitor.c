@@ -54,13 +54,13 @@ int main(int argc, char* argv[])
   int i;
 
   // Open the char device and mmap()
-  buf = buf_init("./node");
+  buf = buf_init("node");
   if(!buf)
     return -1;
-  
+
   // Read and print profiled data
   for(index=0; index<BUFD_MAX; index++)
-    if(buf[index] != -1) break;
+    if(*(buf+index) != -1) break;
 
   i = 0;
   while(buf[index] != -1){
