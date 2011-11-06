@@ -28,14 +28,27 @@ void *buf_init(char *fname)
         return NULL;
     }
   }
+  unsigned int data[buf_len];
+  int i=0;
+  while(i < buf_len){
+    data[i] = malloc(sizeof(int));
+    i++;
+  }
+  i=0;
+  while(read(buf_fd, &data[i++], 4096));
+  /*
   errno=0;
   kadr = mmap(0, buf_len, PROT_READ|PROT_WRITE, MAP_SHARED, buf_fd, 0);
   if (kadr == MAP_FAILED){
       printf("buf file open error, errno=%d.\n", errno);
       return NULL;
+  }else if(kadr < 0){
+      printf("Error code: %d\n", kadr);
+      return NULL;
   }
+  */
 
-  return kadr;
+  return data;
 }
 
 // This function closes the opened character device file.
@@ -57,11 +70,13 @@ int main(int argc, char* argv[])
   buf = buf_init("node");
   if(!buf)
     return -1;
-
+  if(buf == NULL){
+    printf("buf is NULL\n");
+    return -1;
+  }
   // Read and print profiled data
   for(index=0; index<BUFD_MAX; index++)
-    if(*(buf+index) != -1) break;
-
+    if(buf[index] != -1) break;
   i = 0;
   while(buf[index] != -1){
     printf("%d ", buf[index]);
@@ -86,7 +101,6 @@ int main(int argc, char* argv[])
     i++;
   }
   printf("read %d profiled data\n", i);
-
   // Close the char device
   buf_exit();
 }

@@ -474,7 +474,17 @@ int close_dev(struct inode *inode, struct file *filep)
 {
     return 0;
 }
-
+ssize_t mp3_read(struct file* filp, char *buff, size_t len, loff_t *off){
+  short count = 0;
+  int i=0;
+  while(len && (p_addr[i] != 0)){
+    put_user(p_addr[i], buff++);
+    count++;
+    len--;
+    i++;
+  }
+  return count;
+}
 ///////////////////////////////////////////////////////////////////////////////
 //
 // FUNCTION NAME: mp3_mmap
@@ -496,18 +506,37 @@ int close_dev(struct inode *inode, struct file *filep)
 ///////////////////////////////////////////////////////////////////////////////
 int mp3_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-//  struct vm_area_struct *vma;
   unsigned long pfn=0;
   int i;
-
+  int ret;
+  unsigned long start=vma->vm_start;
+  unsigned long length = mem_size;
+  int*  vmalloc_area_ptr = p_addr;
+/*
+  while(length > 0){
+    pfn = vmalloc_to_pfn(vmalloc_area_ptr);
+    if((ret = remap_pfn_range(vma, start, pfn, PAGE_SIZE, PAGE_SHARED)) < 0){
+      printk("Error in remap %d\n", ret);
+      return ret;
+    }else{
+      printk("No error (length=%ld)\n", length);
+    }
+    start += PAGE_SIZE;
+    vmalloc_area_ptr += PAGE_SIZE;
+    length -= PAGE_SIZE;
+  }
+*/
+  printk("start address (1st): %ld\n", vma->vm_start);
+  //mutex_lock(&mp3_mutex);
   for(i=0; i < mem_size; i+= PAGE_SIZE)
   {
     pfn = vmalloc_to_pfn(p_addr+i);
-    remap_pfn_range(vma, vma->vm_start, pfn, PAGE_SIZE, PAGE_SHARED);
-    vma->vm_start += PAGE_SIZE;
+    ret = remap_pfn_range(vma, vma->vm_start + i, pfn, PAGE_SIZE, PAGE_SHARED);
+    if(ret < 0) return ret;
   }
- 
-  return p_addr;
+  //mutex_unlock(&mp3_mutex);
+  printk("start address: %ld\n", vma->vm_start);
+  return vma->vm_start;
   
 }
 
@@ -581,19 +610,22 @@ int __init my_module_init(void)
   register_task_file->write_proc=proc_registration_write;
 
   // Allocate memory buffer
-  p_addr = vmalloc(mem_size*PAGE_SIZE);
+  p_addr = vmalloc(mem_size);
   if(!p_addr){
-    printk("Unable to allocate the memory (size=%ld)\n", mem_size * PAGE_SIZE);
+    printk("Unable to allocate the memory (size=%ld)\n", mem_size);
     return -1;
   }
-  printk("Allocated memory (size=%ld)\n", mem_size * PAGE_SIZE);
+  printk("Allocated memory (size=%ld)\n", mem_size);
   int i;
   // set the PG_reserved bit
+  struct page* apage;
   for(i=0; i < mem_size; i+= PAGE_SIZE)
   {
-    SetPageReserved(vmalloc_to_page(p_addr+i));
+    apage = vmalloc_to_page(p_addr+i);
+    if(apage != NULL)
+      SetPageReserved(apage);
   }
-  memset(p_addr, 0, mem_size * PAGE_SIZE);
+  memset(p_addr, 0, mem_size);
 
 
   // register the character device 
@@ -646,9 +678,12 @@ void __exit my_module_exit(void)
   
   int i;
   // set the PG_reserved bit
-  for(i=0; i < (mem_size); i+= PAGE_SIZE)
+  struct page* apage;
+  for(i=0; i < mem_size; i+= PAGE_SIZE)
   {
-    ClearPageReserved(vmalloc_to_page(p_addr+i));
+    apage = vmalloc_to_page(p_addr+i);
+    if(apage != NULL)
+      ClearPageReserved(vmalloc_to_page(p_addr+i));
   }
   vfree(p_addr);   // deallocate profile buffer 
   printk(KERN_INFO "MP3 Module UNLOADED\n");

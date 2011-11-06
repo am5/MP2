@@ -27,17 +27,19 @@
 #include <linux/mm.h>
 #include "mp3_given.h"
 
-unsigned long mem_size = 128;
+unsigned long mem_size = 512*1024;
 
 // CHAR DEVICE
 char memory_buf[12000];  // character device
 int open_dev(struct inode *inode, struct file *filep);
 int close_dev(struct inode *inode, struct file *filep);
 int mp3_mmap(struct file *filp, struct vm_area_struct *vma);
+ssize_t mp3_read(struct file *filp, char *buff, size_t len, loff_t *off);
 
 struct file_operations mp3_fops = {
     open  : open_dev,
     mmap  : mp3_mmap,
+    read  : mp3_read,
     release : close_dev
 };
 
