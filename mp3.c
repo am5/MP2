@@ -456,7 +456,7 @@ int close_dev(struct inode *inode, struct file *filep)
 
 ///////////////////////////////////////////////////////////////////////////////
 //
-// FUNCTION NAME: mmap
+// FUNCTION NAME: mp3_mmap
 //
 // PROCESSING:
 //
@@ -473,23 +473,17 @@ int close_dev(struct inode *inode, struct file *filep)
 //
 //
 ///////////////////////////////////////////////////////////////////////////////
-unsigned int mmap(int addr, int buff_len, pgprot_t prot, unsigned short flags, int fd, int offset)
+int mp3_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-  struct vm_area_struct *vma;
+//  struct vm_area_struct *vma;
   unsigned long pfn=0;
   int i;
   
-  vma = kmalloc(sizeof(struct vm_area_struct), GFP_KERNEL);
-  vma->vm_page_prot = prot;
-  vma->vm_flags = flags;
-
   for(i=0; i < mem_size; i+= PAGE_SIZE)
   {
-    pfn = vmalloc_to_pfn((void *)addr);
+    pfn = vmalloc_to_pfn(p_addr+i);
 
-    remap_pfn_range(vma, i, pfn, PAGE_SIZE, PAGE_SHARED);
-    
-    addr += PAGE_SIZE;
+    remap_pfn_range(vma, vma->vm_start, pfn, PAGE_SIZE, PAGE_SHARED);
   }
  
   return vma->vm_start;
@@ -566,8 +560,14 @@ int __init my_module_init(void)
   register_task_file->write_proc=proc_registration_write;
 
   // Allocate memory buffer
-  //p_addr = vmalloc(mem_size);
   p_addr = vmalloc(mem_size*PAGE_SIZE);
+  int i;
+  // set the PG_reserved bit
+  for(i=0; i < mem_size; i+= PAGE_SIZE)
+  {
+    SetPageReserved(vmalloc_to_page(p_addr+i));
+  }
+
 
   // register the character device 
   if(!register_chrdev(693, "mp3_char_device", &mp3_fops))
