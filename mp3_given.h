@@ -15,14 +15,18 @@ int get_cpu_use(int pid, unsigned long *min, unsigned long *maj, unsigned long *
    task=find_task_by_pid(pid);
 
    if (task!=NULL) {  
-     *cpu_use=task->utime;
+     *cpu_use = (task->stime + task->utime)/jiffies;;
      *min = task->min_flt;
      *maj = task->maj_flt;
+     printk("get_cpu_use: (before reset) Value of pid=%d min=%ld, maj=%ld, utime=%ld\n", pid, task->min_flt, task->maj_flt, task->utime);
 
      // reset the values to 0
      task->utime=0;
+     task->stime=0;
      task->min_flt=0;
      task->maj_flt=0;
+
+     printk("get_cpu_use: Value of pid=%d min=%ld, maj=%ld, utime=%ld\n", pid, task->min_flt, task->maj_flt, task->utime);
 
      rcu_read_unlock();
      return 0;

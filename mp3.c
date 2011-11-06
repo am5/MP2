@@ -39,6 +39,7 @@ void _insert_task(struct mp3_task_struct* t)
 {
   BUG_ON(t==NULL);
   list_add_tail(&t->task_node, &mp3_task_list);
+  list_count++;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -114,6 +115,8 @@ void work_handler (void *arg){
   {
     p = list_entry(pos, struct mp3_task_struct, task_node);
     // read the stats and store them on the buffer
+    // reset the values
+    min=0; maj=0; cpu=0;
     if(get_cpu_use(p->pid, &min, &maj, &cpu)){
       // an error occur
       printk(KERN_INFO "Unable to get stats for pid=%ld\n", p->pid);
@@ -121,13 +124,15 @@ void work_handler (void *arg){
       // store the sum of information for each PID
       p->min += min;
       p->maj += maj;
-      p->cpu = (p->linux_task->stime + p->linux_task->utime)/jiffies;
+      p->cpu = cpu;
 
       // store the information on the memory buffer
       *(p_addr + (p_index * PAGE_SIZE) + 0) = jiffies;
       *(p_addr + (p_index * PAGE_SIZE) + 1) = p->min;
       *(p_addr + (p_index * PAGE_SIZE) + 2) = p->maj;
       *(p_addr + (p_index * PAGE_SIZE) + 3) = p->cpu;
+      // display the current data
+      printk("pid=%lu, jiffies=%lu, min=%lu, maj=%lu, cpu=%lu\n", p->pid, jiffies, p->min, p->maj, p->cpu);
       p_index++;
     }
   }
@@ -205,7 +210,7 @@ void create_mp3queue (void) {
 int register_task(long pid, long period, long processingTime)
 {
   struct mp3_task_struct *p, *first;
-  struct list_head *pos, *tmp;
+//  struct list_head *pos, *tmp;
   
   //only add if PID doesn't already exist
   if(_lookup_task(pid) != NULL) return -1;
@@ -226,6 +231,10 @@ int register_task(long pid, long period, long processingTime)
   // Update the task structure
   p->pid = pid;
 
+  if(!list_count){
+    create_mp3queue();
+  }
+
   // Insert the task into the task list 
   mutex_lock(&mp3_mutex);
   _insert_task(p);
@@ -233,14 +242,14 @@ int register_task(long pid, long period, long processingTime)
 
   /***NEED MUTEX HERE? *****/
   // create the work queue job if task list is empty
-  list_for_each_safe(pos, tmp, &mp3_task_list)
+/*  list_for_each_safe(pos, tmp, &mp3_task_list)
   {
     first = list_entry(pos, struct mp3_task_struct, task_node);
-    if(first==NULL)
+    if(list_count == 0)
       create_mp3queue();
     break;
   }
-
+*/
   printk(KERN_INFO "Task added to list\n");
   return 0;
 }
@@ -474,6 +483,31 @@ int close_dev(struct inode *inode, struct file *filep)
 {
     return 0;
 }
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME: mp3_read
+//
+// PROCESSING:
+//
+//	  Callback handler for the device read function. 
+//
+// INPUTS:
+//
+//    filp  - The pointer to file
+//    buff - buffer to write information to
+//    len - size of data to read
+//    off - offset
+//    
+//
+// RETURN:
+//
+//   The size of the data.
+//
+// IMPLEMENTATION NOTES
+//
+//   Function is only defined and does not do any processing. 
+//
+///////////////////////////////////////////////////////////////////////////////
 ssize_t mp3_read(struct file* filp, char *buff, size_t len, loff_t *off){
   short count = 0;
   int i=0;
@@ -509,9 +543,9 @@ int mp3_mmap(struct file *filp, struct vm_area_struct *vma)
   unsigned long pfn=0;
   int i;
   int ret;
-  unsigned long start=vma->vm_start;
-  unsigned long length = mem_size;
-  int*  vmalloc_area_ptr = p_addr;
+  //unsigned long start=vma->vm_start;
+  //unsigned long length = mem_size;
+  //int*  vmalloc_area_ptr = p_addr;
 /*
   while(length > 0){
     pfn = vmalloc_to_pfn(vmalloc_area_ptr);

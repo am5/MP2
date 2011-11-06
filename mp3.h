@@ -67,6 +67,7 @@ int *p_addr; 		// pointer to memory area
 // workqueue
 struct delayed_work *wqueue;
 int queue_stop=0;	// determines when work should stop
+int list_count=0;       // keep track of the number of elements on list
 
 LIST_HEAD(mp3_task_list);
 static DEFINE_MUTEX(mp3_mutex);
