@@ -504,9 +504,10 @@ int mp3_mmap(struct file *filp, struct vm_area_struct *vma)
   {
     pfn = vmalloc_to_pfn(p_addr+i);
     remap_pfn_range(vma, vma->vm_start, pfn, PAGE_SIZE, PAGE_SHARED);
+    vma->vm_start += PAGE_SIZE;
   }
  
-  return vma->vm_start;
+  return p_addr;
   
 }
 
