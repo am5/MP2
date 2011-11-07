@@ -714,7 +714,7 @@ int __init my_module_init(void)
 // IMPLEMENTATION NOTES
 //
 //   The my_module_exit function removes the proc filesystem entries and 
-//   deallocates memory. 
+//   deallocates memory allocated to the profiler buffer. 
 //   
 ///////////////////////////////////////////////////////////////////////////////
 void __exit my_module_exit(void)
