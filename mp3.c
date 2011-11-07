@@ -300,15 +300,14 @@ int unregister_task(long pid)
       list_del(pos);
       kfree(p);
       list_count--;
+      found=0;
+      if(!list_count){
+        queue_stop=1;
+        kfree(wqueue);
+      }
       mutex_unlock(&mp3_mutex);
       printk(KERN_INFO "Removing PID %ld\n", pid);
-      found=0;
     } // no, keep searching
-  }
-
-  if(!list_count){
-    queue_stop=1;
-    kfree(wqueue);
   }
 
   /***NEED MUTEX HERE? *****/
