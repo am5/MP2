@@ -9,25 +9,24 @@
 int get_cpu_use(int pid, unsigned long *min, unsigned long *maj, unsigned long *cpu_use)
 {
    struct task_struct* task;
-
    rcu_read_lock();
-
    task=find_task_by_pid(pid);
 
    if (task!=NULL) {  
      printk("get_cpu_use: (direct from task struct) Value of pid=%d min=%ld, maj=%ld, utime=%ld\n", pid, task->min_flt, task->maj_flt, task->utime + task->stime);
-     *cpu_use = (task->stime + task->utime)/jiffies;;
+     *cpu_use = ((task->stime + task->utime)/jiffies) * 1000;
      *min = task->min_flt;
      *maj = task->maj_flt;
-     printk("get_cpu_use: (before reset) Value of pid=%d min=%ld, maj=%ld, utime=%ld\n", pid, task->min_flt, task->maj_flt, task->utime);
+     printk("get_cpu_use: (before reset) Value of pid=%d min=%ld, maj=%ld, utime=%ld\n", pid, task->min_flt, task->maj_flt, *cpu_use);
 
      // reset the values to 0
-     task->utime=0;
-     task->stime=0;
+     //task->utime=0;
+     //task->stime=0;
      task->min_flt=0;
      task->maj_flt=0;
 
-     printk("get_cpu_use: Value of pid=%d min=%ld, maj=%ld, utime=%ld\n", pid, task->min_flt, task->maj_flt, task->utime);
+     //printk("get_cpu_use: (after reset) Value of pid=%d min=%ld, maj=%ld, utime=%ld\n", pid, task->min_flt, task->maj_flt, task->utime);
+     printk("get_cpu_use: (return data) Value of pid=%d min=%ld, maj=%ld, cpu_use=%ld\n", pid, *min, *maj, *cpu_use);
 
      rcu_read_unlock();
      return 0;

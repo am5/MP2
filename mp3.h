@@ -61,13 +61,14 @@ static struct proc_dir_entry *register_task_file;
 struct mp3_task_struct *mp3_current_task;
 
 // PROFILE BUFFER
-int *p_addr; 		// pointer to memory area 
+unsigned long *p_addr; 		// pointer to memory area 
 //unsigned long mem_size; // memory area size
 
 // workqueue
 struct delayed_work *wqueue;
 int queue_stop=0;	// determines when work should stop
 int list_count=0;       // keep track of the number of elements on list
+static unsigned long p_index=0;
 
 LIST_HEAD(mp3_task_list);
 static DEFINE_MUTEX(mp3_mutex);

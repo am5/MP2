@@ -28,17 +28,21 @@ void *buf_init(char *fname)
         return NULL;
     }
   }
-  unsigned int data[buf_len];
+  //unsigned int data[buf_len];
+  unsigned int *data;
   int i=0;
-  while(i < buf_len){
-    data[i] = malloc(sizeof(int));
+/*  while(i < buf_len){
+    data[i] = (unsigned int) malloc(sizeof(int));
     i++;
   }
   i=0;
   while(read(buf_fd, &data[i++], 4096));
-  /*
+*/
+  data = malloc(buf_len);
+  read(buf_fd, data, buf_len);
+  
   errno=0;
-  kadr = mmap(0, buf_len, PROT_READ|PROT_WRITE, MAP_SHARED, buf_fd, 0);
+/*  kadr = mmap(0, buf_len, PROT_READ|PROT_WRITE, MAP_SHARED, buf_fd, 0);
   if (kadr == MAP_FAILED){
       printf("buf file open error, errno=%d.\n", errno);
       return NULL;
@@ -46,8 +50,8 @@ void *buf_init(char *fname)
       printf("Error code: %d\n", kadr);
       return NULL;
   }
-  */
-
+  return kadr;
+*/
   return data;
 }
 
@@ -77,7 +81,7 @@ int main(int argc, char* argv[])
   // Read and print profiled data
   for(index=0; index<BUFD_MAX; index++)
     if(buf[index] != -1) break;
-  i = 0;
+  i=0;
   while(buf[index] != -1){
     printf("%d ", buf[index]);
     buf[index++] = -1;
