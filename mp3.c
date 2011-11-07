@@ -521,8 +521,8 @@ int close_dev(struct inode *inode, struct file *filep)
 ssize_t mp3_read(struct file* filp, char *buff, size_t len, loff_t *off){
   short count = 0;
   int i=0;
-  while(len && (p_addr[i] != 0)){
-    put_user(p_addr[i], buff++);
+  while(len && (*(p_addr+i) != 0)){
+    put_user(*(p_addr+i), buff++);
     count++;
     len--;
     i++;
@@ -552,7 +552,7 @@ int mp3_mmap(struct file *filp, struct vm_area_struct *vma)
 {
   unsigned long pfn=0;
   int i;
-  int ret;
+  int ret =0;
   //unsigned long start=vma->vm_start;
   //unsigned long length = mem_size;
   //int*  vmalloc_area_ptr = p_addr;
@@ -570,16 +570,17 @@ int mp3_mmap(struct file *filp, struct vm_area_struct *vma)
     length -= PAGE_SIZE;
   }
 */
-  printk("start address (1st): %ld\n", vma->vm_start);
   //mutex_lock(&mp3_mutex);
   for(i=0; i < mem_size; i+= PAGE_SIZE)
   {
-    pfn = vmalloc_to_pfn(p_addr+i);
-    ret = remap_pfn_range(vma, vma->vm_start + i, pfn, PAGE_SIZE, PAGE_SHARED);
+//    pfn = vmalloc_to_pfn(p_addr+i);
+    printk("mmap: i=%d, pfn=%d\n", i, *(p_addr+i));
+//    if(!pfn)
+//      ret = remap_pfn_range(vma, vma->vm_start + i, pfn, PAGE_SIZE, PAGE_SHARED);
     if(ret < 0) return ret;
   }
   //mutex_unlock(&mp3_mutex);
-  printk("start address: %ld\n", vma->vm_start);
+  printk("start address: %lu, end address: %lu\n", vma->vm_start, vma->vm_end);
   return vma->vm_start;
   
 }
