@@ -38,7 +38,7 @@ void *buf_init(char *fname)
   i=0;
   while(read(buf_fd, &data[i++], 4096));
 */
-  data = malloc(sizeof(int));
+  data = malloc(buf_len);
   
   errno=0;
 /*  kadr = mmap(0, buf_len, PROT_READ|PROT_WRITE, MAP_SHARED, buf_fd, 0);
@@ -80,7 +80,7 @@ int main(int argc, char* argv[])
   // Read and print profiled data
   for(index=0; index<BUFD_MAX; index++)
     if(buf[index] != -1) break;
-  i = 0;
+  i=0;
   while(buf[index] != -1){
     printf("%d ", buf[index]);
     buf[index++] = -1;
