@@ -39,7 +39,6 @@ void _insert_task(struct mp3_task_struct* t)
 {
   BUG_ON(t==NULL);
   list_add_tail(&t->task_node, &mp3_task_list);
-  list_count++;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -132,7 +131,7 @@ void work_handler (void *arg){
       *(p_addr + (p_index * PAGE_SIZE) + 2) = p->maj;
       *(p_addr + (p_index * PAGE_SIZE) + 3) = p->cpu;
       // display the current data
-      printk("pid=%lu, jiffies=%lu, min=%lu, maj=%lu, cpu=%lu\n", p->pid, jiffies, p->min, p->maj, p->cpu);
+      printk("work_handler: pid=%lu, jiffies=%lu, min=%lu, maj=%lu, cpu=%lu\n", p->pid, jiffies, p->min, p->maj, p->cpu);
       p_index++;
     }
   }
@@ -168,6 +167,7 @@ void create_mp3queue (void) {
   if(wqueue){
     INIT_DELAYED_WORK(wqueue, work_handler);
     printk("Starting the work handler\n");
+    queue_stop=0;
     // schedule for every 50 milliseconds (20 times per second)
     schedule_delayed_work(wqueue, HZ/20);
   }else{
@@ -209,7 +209,7 @@ void create_mp3queue (void) {
 ///////////////////////////////////////////////////////////////////////////////
 int register_task(long pid, long period, long processingTime)
 {
-  struct mp3_task_struct *p, *first;
+  struct mp3_task_struct *p;//, *first;
 //  struct list_head *pos, *tmp;
   
   //only add if PID doesn't already exist
@@ -235,21 +235,23 @@ int register_task(long pid, long period, long processingTime)
     create_mp3queue();
   }
 
-  // Insert the task into the task list 
-  mutex_lock(&mp3_mutex);
-  _insert_task(p);
-  mutex_unlock(&mp3_mutex);
-
   /***NEED MUTEX HERE? *****/
   // create the work queue job if task list is empty
 /*  list_for_each_safe(pos, tmp, &mp3_task_list)
   {
     first = list_entry(pos, struct mp3_task_struct, task_node);
-    if(list_count == 0)
+    if(first==NULL)
       create_mp3queue();
     break;
   }
 */
+  // Insert the task into the task list 
+  mutex_lock(&mp3_mutex);
+  _insert_task(p);
+  list_count++;
+  mutex_unlock(&mp3_mutex);
+
+
   printk(KERN_INFO "Task added to list\n");
   return 0;
 }
@@ -280,8 +282,9 @@ int register_task(long pid, long period, long processingTime)
 ///////////////////////////////////////////////////////////////////////////////
 int unregister_task(long pid)
 {
-  struct list_head *pos,*pos2, *tmp, *tmp2;
-  struct mp3_task_struct *p, *first;
+  //struct list_head *pos,*pos2, *tmp, *tmp2;
+  struct list_head *pos, *tmp;
+  struct mp3_task_struct *p;//, *first;
   int found = -1;  // init to not found
 
 
@@ -296,23 +299,30 @@ int unregister_task(long pid)
       mutex_lock(&mp3_mutex);
       list_del(pos);
       kfree(p);
+      list_count--;
       mutex_unlock(&mp3_mutex);
       printk(KERN_INFO "Removing PID %ld\n", pid);
       found=0;
     } // no, keep searching
   }
 
+  if(!list_count){
+    queue_stop=1;
+    kfree(wqueue);
+  }
 
   /***NEED MUTEX HERE? *****/
   // delete the work queue job if task list is empty
-  list_for_each_safe(pos2, tmp2, &mp3_task_list)
+/*  list_for_each_safe(pos2, tmp2, &mp3_task_list)
   {
     first = list_entry(pos, struct mp3_task_struct, task_node);
-    if(first==NULL)
+    if(first==NULL){
+      queue_stop=1;
       kfree(wqueue);
+    }
     break;
   }
-
+*/
   // return the result status
   return found;
 }
@@ -703,7 +713,8 @@ void __exit my_module_exit(void)
   
   // need to stop the workqueue and free memory
   queue_stop=1;
-  kfree(wqueue);
+  if(list_count)
+    kfree(wqueue);
 
   // deregister the character device 
   unregister_chrdev(693, "mp3_char_device");

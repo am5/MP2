@@ -15,6 +15,7 @@ int get_cpu_use(int pid, unsigned long *min, unsigned long *maj, unsigned long *
    task=find_task_by_pid(pid);
 
    if (task!=NULL) {  
+     printk("get_cpu_use: (direct from task struct) Value of pid=%d min=%ld, maj=%ld, utime=%ld\n", pid, task->min_flt, task->maj_flt, task->utime + task->stime);
      *cpu_use = (task->stime + task->utime)/jiffies;;
      *min = task->min_flt;
      *maj = task->maj_flt;
