@@ -39,6 +39,7 @@ void *buf_init(char *fname)
   while(read(buf_fd, &data[i++], 4096));
 */
   data = malloc(buf_len);
+  read(buf_fd, data, buf_len);
   
   errno=0;
 /*  kadr = mmap(0, buf_len, PROT_READ|PROT_WRITE, MAP_SHARED, buf_fd, 0);

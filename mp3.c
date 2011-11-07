@@ -108,32 +108,35 @@ void work_handler (void *arg){
   unsigned long maj, min, cpu;
   struct list_head *pos, *tmp;
   struct mp3_task_struct *p;
-  int p_index=0;	// keeps track of the current task
+  //unsigned long p_index=0;	// keeps track of the current task
+
   // for every item on our list, get the stats
   list_for_each_safe(pos, tmp, &mp3_task_list)
   {
+    mutex_lock(&mp3_mutex);
     p = list_entry(pos, struct mp3_task_struct, task_node);
     // read the stats and store them on the buffer
-    // reset the values
-    min=0; maj=0; cpu=0;
     if(get_cpu_use(p->pid, &min, &maj, &cpu)){
       // an error occur
       printk(KERN_INFO "Unable to get stats for pid=%ld\n", p->pid);
     }else{
+      printk("work_handler: (after get_cpu_use) pid=%lu, jiffies=%lu, min=%lu, maj=%lu, cpu=%lu\n", p->pid, jiffies, min, maj, cpu);
       // store the sum of information for each PID
       p->min += min;
       p->maj += maj;
-      p->cpu = cpu;
+      p->cpu += cpu;
 
       // store the information on the memory buffer
-      *(p_addr + (p_index * PAGE_SIZE) + 0) = jiffies;
-      *(p_addr + (p_index * PAGE_SIZE) + 1) = p->min;
-      *(p_addr + (p_index * PAGE_SIZE) + 2) = p->maj;
-      *(p_addr + (p_index * PAGE_SIZE) + 3) = p->cpu;
+      *(p_addr + (p_index) + 0) = jiffies;
+      *(p_addr + (p_index) + 1) = p->min;
+      *(p_addr + (p_index) + 2) = p->maj;
+      *(p_addr + (p_index) + 3) = p->cpu;
       // display the current data
       printk("work_handler: pid=%lu, jiffies=%lu, min=%lu, maj=%lu, cpu=%lu\n", p->pid, jiffies, p->min, p->maj, p->cpu);
-      p_index++;
+      printk("work_handler: (p_addr) pid=%ld, jiffies=%lu, min=%lu, maj=%lu, cpu=%lu\n", p->pid, *(p_addr + p_index +0), *(p_addr + p_index + 4), *(p_addr + p_index + 8), *(p_addr + p_index + 12));
+      p_index += 4;
     }
+    mutex_unlock(&mp3_mutex);
   }
   // schedule the work queue again
   schedule_delayed_work(wqueue, HZ/20);
@@ -168,6 +171,7 @@ void create_mp3queue (void) {
     INIT_DELAYED_WORK(wqueue, work_handler);
     printk("Starting the work handler\n");
     queue_stop=0;
+    p_index=0;
     // schedule for every 50 milliseconds (20 times per second)
     schedule_delayed_work(wqueue, HZ/20);
   }else{
@@ -230,10 +234,15 @@ int register_task(long pid, long period, long processingTime)
 
   // Update the task structure
   p->pid = pid;
+  p->min = 0;
+  p->maj = 0;
+  p->cpu = 0;
 
+  mutex_lock(&mp3_mutex);
   if(!list_count){
     create_mp3queue();
   }
+  mutex_unlock(&mp3_mutex);
 
   /***NEED MUTEX HERE? *****/
   // create the work queue job if task list is empty
@@ -303,6 +312,8 @@ int unregister_task(long pid)
       found=0;
       if(!list_count){
         queue_stop=1;
+        // need to cancel any pending work
+        cancel_delayed_work(wqueue);
         kfree(wqueue);
       }
       mutex_unlock(&mp3_mutex);
@@ -573,7 +584,7 @@ int mp3_mmap(struct file *filp, struct vm_area_struct *vma)
   for(i=0; i < mem_size; i+= PAGE_SIZE)
   {
 //    pfn = vmalloc_to_pfn(p_addr+i);
-    printk("mmap: i=%d, pfn=%d\n", i, *(p_addr+i));
+    printk("mmap: i=%d, pfn=%lu\n", i, *(p_addr+i));
 //    if(!pfn)
 //      ret = remap_pfn_range(vma, vma->vm_start + i, pfn, PAGE_SIZE, PAGE_SHARED);
     if(ret < 0) return ret;
