@@ -661,6 +661,7 @@ int __init my_module_init(void)
   }
   printk("Allocated memory (size=%ld)\n", mem_size);
   int i;
+
   // set the PG_reserved bit
   struct page* apage;
   for(i=0; i < mem_size; i+= PAGE_SIZE)
